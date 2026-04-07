@@ -53,6 +53,7 @@ export function InboxFileViewerDrawer({ open, file, onClose }: Props) {
       return;
     }
 
+    const f = file;
     let cancelled = false;
     const ac = new AbortController();
 
@@ -62,24 +63,24 @@ export function InboxFileViewerDrawer({ open, file, onClose }: Props) {
       setText(null);
       revokePdf();
 
-      if (isXlsx(file)) {
+      if (isXlsx(f)) {
         if (!cancelled) setLoading(false);
         return;
       }
 
       try {
-        if (isPdf(file)) {
-          const blob = await fetchInboxFileBlob(file.id, false, ac.signal);
+        if (isPdf(f)) {
+          const blob = await fetchInboxFileBlob(f.id, false, ac.signal);
           if (cancelled) return;
           const url = URL.createObjectURL(blob);
           pdfUrlRef.current = url;
           setPdfUrl(url);
-        } else if (isTextPreview(file)) {
-          const t = await fetchInboxFileText(file.id, ac.signal);
+        } else if (isTextPreview(f)) {
+          const t = await fetchInboxFileText(f.id, ac.signal);
           if (cancelled) return;
           setText(t);
         } else {
-          const blob = await fetchInboxFileBlob(file.id, false, ac.signal);
+          const blob = await fetchInboxFileBlob(f.id, false, ac.signal);
           if (cancelled) return;
           if (blob.size <= 3 * 1024 * 1024) {
             const t = await blob.text();
