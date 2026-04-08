@@ -1,4 +1,9 @@
-const BASE_URL = "http://localhost:3000/api/vault";
+function stripTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+const API_ORIGIN = stripTrailingSlash(import.meta.env.VITE_API_URL ?? "http://localhost:3000");
+const BASE_URL = `${API_ORIGIN}/api/vault`;
 
 /** Base URL for vault API (same host/path as `apiClient`). */
 export const VAULT_API_BASE = BASE_URL;
