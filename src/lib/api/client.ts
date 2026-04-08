@@ -2,8 +2,27 @@ function stripTrailingSlash(url: string): string {
   return url.endsWith("/") ? url.slice(0, -1) : url;
 }
 
-const API_ORIGIN = stripTrailingSlash(import.meta.env.VITE_API_URL ?? "http://localhost:3000");
-const BASE_URL = `${API_ORIGIN}/api/vault`;
+function resolveBaseUrl(): string {
+  const raw = import.meta.env.VITE_API_URL;
+
+  // If explicitly provided, respect it.
+  if (raw && raw.trim()) {
+    const cleaned = stripTrailingSlash(raw.trim());
+    // Allow relative base like "/".
+    if (cleaned.startsWith("/")) {
+      const combined = `${cleaned}/api/vault`;
+      return combined.replace(/\/\/api\/vault$/, "/api/vault");
+    }
+    return `${cleaned}/api/vault`;
+  }
+
+  // If not provided:
+  // - in dev, default to local backend
+  // - in prod, use same-origin "/api/vault" (works with Vercel rewrite/proxy)
+  return import.meta.env.DEV ? "http://localhost:3000/api/vault" : "/api/vault";
+}
+
+const BASE_URL = resolveBaseUrl();
 
 /** Base URL for vault API (same host/path as `apiClient`). */
 export const VAULT_API_BASE = BASE_URL;

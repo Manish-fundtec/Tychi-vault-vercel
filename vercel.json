@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/vault/:path*",
+      "destination": "http://23.22.29.154:3000/api/vault/:path*"
+    }
+  ]
+}
+
