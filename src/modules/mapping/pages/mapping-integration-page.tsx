@@ -11,7 +11,7 @@ import { ApiError, apiClient } from "../../../lib/api/client";
 type MappingKey = string; // sourceField
 type MappingValue = string; // targetField
 
-type PairKey = "trades" | "securities";
+type PairKey = "trades" | "securities" | "accounts" | "exchanges" | "assettypes";
 type PairTab = {
   id: PairKey;
   title: string;
@@ -21,7 +21,10 @@ type PairTab = {
 
 const PAIRS: PairTab[] = [
   { id: "trades", title: "Trades", sourceLabel: "Vault trades columns", targetLabel: "Tychi trade buffer columns" },
-  { id: "securities", title: "Securities", sourceLabel: "Vault securities columns", targetLabel: "Tychi symbols columns" }
+  { id: "securities", title: "Securities", sourceLabel: "Vault securities columns", targetLabel: "Tychi symbols columns" },
+  { id: "accounts", title: "Accounts", sourceLabel: "Vault accounts columns", targetLabel: "Tychi brokers columns" },
+  { id: "exchanges", title: "Exchanges", sourceLabel: "Vault security equities columns", targetLabel: "Tychi exchanges columns" },
+  { id: "assettypes", title: "Asset types", sourceLabel: "Vault securities columns", targetLabel: "Tychi asset types columns" }
 ];
 
 type FieldMappingRow = { source_field: string; target_field: string };
@@ -166,6 +169,9 @@ function matchesPairKey(p: unknown, pairKey: PairKey): boolean {
   const tt = String(x.target_table ?? x.targetTable ?? "");
   if (pairKey === "trades") return st.includes("vault_trades") && tt.includes("trade_buffer");
   if (pairKey === "securities") return st.includes("vault_securities") && tt.includes("symbols");
+  if (pairKey === "accounts") return st.includes("vault_accounts") && tt.includes("brokers");
+  if (pairKey === "exchanges") return st.includes("vault_security_equities") && tt.includes("exchanges");
+  if (pairKey === "assettypes") return st.includes("vault_securities") && tt.includes("assettype");
   return false;
 }
 
