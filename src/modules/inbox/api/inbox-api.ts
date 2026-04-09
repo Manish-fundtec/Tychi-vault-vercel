@@ -81,6 +81,38 @@ export function fetchInboxFiles(signal?: AbortSignal) {
  */
 export function uploadInboxFile(file: File, signal?: AbortSignal) {
   const formData = new FormData();
-  formData.append("file", file);
-  return apiClient.post<{ success?: boolean; message?: string; id?: string }>("/inbox/upload", formData, undefined, signal);
+  // Provide explicit filename for maximum compatibility across runtimes.
+  formData.append("file", file, file.name);
+
+  // Use raw fetch so we can detect HTML "success" responses (misrouted proxy, auth gateway, etc.)
+  // that would otherwise look like a successful 200 to the generic JSON client.
+  return (async () => {
+    const res = await vaultAuthorizedFetch("/inbox/upload", { method: "POST", body: formData, signal });
+    if (!res.ok) {
+      const msg = await readVaultErrorMessage(res);
+      throw new ApiError(msg, res.status);
+    }
+
+    const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+    const text = await res.text();
+    const trimmed = text.trim();
+
+    if (contentType.includes("text/html")) {
+      const msg = trimmed ? `Upload failed — server returned HTML: ${trimmed.slice(0, 200)}…` : "Upload failed — server returned HTML.";
+      throw new ApiError(msg, 502);
+    }
+
+    if (!trimmed) {
+      // Some backends return 200/204 with empty body on success.
+      return { success: true } as { success?: boolean; message?: string; id?: string };
+    }
+
+    try {
+      return JSON.parse(trimmed) as { success?: boolean; message?: string; id?: string };
+    } catch {
+      // Non-JSON but non-HTML response; consider it ambiguous rather than silently succeeding.
+      const msg = trimmed.length > 300 ? `${trimmed.slice(0, 300)}…` : trimmed;
+      throw new ApiError(`Upload failed — unexpected response: ${msg}`, 502);
+    }
+  })();
 }

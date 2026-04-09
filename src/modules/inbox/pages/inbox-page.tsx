@@ -4,7 +4,7 @@ import { EmptyState } from "../../../components/common/empty-state";
 import { ErrorState } from "../../../components/common/error-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { ApiError } from "../../../lib/api/client";
-import { uploadInboxFile } from "../api/inbox-api";
+import { fetchInboxFiles, uploadInboxFile } from "../api/inbox-api";
 import { UploadDropzone } from "../components/upload-dropzone";
 import { InboxTable } from "../components/inbox-table";
 import { useInboxFiles } from "../hooks/use-inbox-files";
@@ -39,11 +39,28 @@ export function InboxPage() {
               clearTimerRef.current = null;
             }
             try {
+              const beforeIds = new Set(data.map((d) => d.id));
               const result = await uploadInboxFile(file);
               // Prevent false-positive UI if backend returned 200 but not a real stored upload.
               if (result && typeof result === "object" && "success" in result && result.success === false) {
                 throw new Error(result.message ?? "Upload request accepted but file was not persisted.");
               }
+
+              // Verify the file actually appears in the inbox list.
+              // PDFs have been observed to sometimes return a 200 from a proxy/gateway while not persisting.
+              const after = await fetchInboxFiles();
+              const byId = result?.id ? after.find((r) => r.id === result.id) : null;
+              const byName = after.find(
+                (r) =>
+                  r.fileName === file.name &&
+                  // uploadedAt can be missing/invalid depending on backend; tolerate but prefer recency when present.
+                  (!r.uploadedAt || Number.isFinite(new Date(r.uploadedAt).getTime()))
+              );
+              const isNew = after.some((r) => !beforeIds.has(r.id));
+              if (!byId && !byName && !isNew) {
+                throw new Error("Upload did not persist. The API responded but the file did not appear in the inbox list.");
+              }
+
               await reload();
               setUploadNotice({ variant: "success", text: "File uploaded successfully." });
               clearTimerRef.current = setTimeout(() => {
