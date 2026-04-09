@@ -55,14 +55,22 @@ export function InboxPage() {
 
               // Verify the file actually appears in the inbox list.
               // PDFs have been observed to sometimes return a 200 from a proxy/gateway while not persisting.
+              const rawFileFromResponse =
+                result && typeof result === "object"
+                  ? (result as { rawFile?: { id?: string } }).rawFile
+                  : undefined;
+
               const uploadedId =
                 result && typeof result === "object"
                   ? (result as { id?: string; rawFile?: { id?: string } }).id ??
                     (result as { rawFile?: { id?: string } }).rawFile?.id
                   : undefined;
 
-              let persisted = false;
+              // If the backend already returned a rawFile object, the upload was persisted.
+              // The inbox list endpoint can lag, so don't show a false "did not persist" error.
+              let persisted = Boolean(rawFileFromResponse?.id);
               for (let attempt = 0; attempt < 4; attempt++) {
+                if (persisted) break;
                 const after = await fetchInboxFiles();
                 const byId = uploadedId ? after.some((r) => r.id === uploadedId) : false;
                 const byName = after.some((r) => r.fileName === file.name);
