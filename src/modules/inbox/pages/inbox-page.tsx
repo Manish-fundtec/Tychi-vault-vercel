@@ -9,6 +9,10 @@ import { UploadDropzone } from "../components/upload-dropzone";
 import { InboxTable } from "../components/inbox-table";
 import { useInboxFiles } from "../hooks/use-inbox-files";
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 export function InboxPage() {
   const { data, loading, error, reload } = useInboxFiles();
   const [uploadNotice, setUploadNotice] = useState<{ variant: "success" | "error"; text: string } | null>(null);
@@ -39,7 +43,10 @@ export function InboxPage() {
               clearTimerRef.current = null;
             }
             try {
-              const beforeIds = new Set(data.map((d) => d.id));
+              // Fetch baseline from API (state can be stale during background refresh).
+              const before = await fetchInboxFiles();
+              const beforeIds = new Set(before.map((d) => d.id));
+
               const result = await uploadInboxFile(file);
               // Prevent false-positive UI if backend returned 200 but not a real stored upload.
               if (result && typeof result === "object" && "success" in result && result.success === false) {
@@ -48,16 +55,27 @@ export function InboxPage() {
 
               // Verify the file actually appears in the inbox list.
               // PDFs have been observed to sometimes return a 200 from a proxy/gateway while not persisting.
-              const after = await fetchInboxFiles();
-              const byId = result?.id ? after.find((r) => r.id === result.id) : null;
-              const byName = after.find(
-                (r) =>
-                  r.fileName === file.name &&
-                  // uploadedAt can be missing/invalid depending on backend; tolerate but prefer recency when present.
-                  (!r.uploadedAt || Number.isFinite(new Date(r.uploadedAt).getTime()))
-              );
-              const isNew = after.some((r) => !beforeIds.has(r.id));
-              if (!byId && !byName && !isNew) {
+              const uploadedId =
+                result && typeof result === "object"
+                  ? (result as { id?: string; rawFile?: { id?: string } }).id ??
+                    (result as { rawFile?: { id?: string } }).rawFile?.id
+                  : undefined;
+
+              let persisted = false;
+              for (let attempt = 0; attempt < 4; attempt++) {
+                const after = await fetchInboxFiles();
+                const byId = uploadedId ? after.some((r) => r.id === uploadedId) : false;
+                const byName = after.some((r) => r.fileName === file.name);
+                const isNew = after.some((r) => !beforeIds.has(r.id));
+                if (byId || byName || isNew) {
+                  persisted = true;
+                  break;
+                }
+                // Give backend a moment to persist / index.
+                await sleep(500);
+              }
+
+              if (!persisted) {
                 throw new Error("Upload did not persist. The API responded but the file did not appear in the inbox list.");
               }
 
