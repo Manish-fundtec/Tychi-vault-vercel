@@ -53,6 +53,7 @@ function mapInboxFile(raw: Record<string, unknown>): InboxFile {
   const channelRaw = get("channel", "channel") ?? get("ingestionChannel", "ingestion_channel");
   const inboxEmail = get("inboxEmail", "inbox_email");
   const s3Uri = get("s3Uri", "s3_uri");
+  const errorMessage = get("errorMessage", "error_message");
   return {
     id: String(get("id", "id")),
     fileName: String(get("fileName", "file_name") ?? ""),
@@ -63,7 +64,8 @@ function mapInboxFile(raw: Record<string, unknown>): InboxFile {
     status: get("status", "status") as InboxFile["status"],
     recordCount: Number(get("recordCount", "record_count") ?? 0),
     s3Uri: (typeof s3Uri === "string" ? s3Uri : null) ?? null,
-    inboxEmail: inboxEmail != null && inboxEmail !== "" ? String(inboxEmail) : null
+    inboxEmail: inboxEmail != null && inboxEmail !== "" ? String(inboxEmail) : null,
+    errorMessage: errorMessage != null && errorMessage !== "" ? String(errorMessage) : null
   };
 }
 

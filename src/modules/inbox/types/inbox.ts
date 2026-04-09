@@ -16,4 +16,6 @@ export interface InboxFile {
   s3Uri?: string | null;
   /** vault_accounts.email_inbox_address when account_id is set */
   inboxEmail?: string | null;
+  /** Failure reason from backend ingestion (when status = FAILED) */
+  errorMessage?: string | null;
 }

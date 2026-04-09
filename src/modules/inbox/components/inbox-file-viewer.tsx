@@ -144,6 +144,12 @@ export function InboxFileViewerDrawer({ open, file, onClose }: Props) {
     >
       {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {file?.status === "FAILED" && file.errorMessage && !error ? (
+        <div className="mb-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <p className="font-medium">Ingestion failed</p>
+          <p className="mt-1 break-words">{file.errorMessage}</p>
+        </div>
+      ) : null}
       {pdfUrl && !error ? (
         <iframe title="PDF preview" className="h-[min(70vh,720px)] w-full rounded border border-border" src={pdfUrl} />
       ) : null}
