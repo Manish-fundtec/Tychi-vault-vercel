@@ -27,6 +27,17 @@ const PAIRS: PairTab[] = [
   { id: "assettypes", title: "Asset types", sourceLabel: "Vault securities columns", targetLabel: "Tychi asset types columns" }
 ];
 
+function lockedTargetFieldsForPair(pairId: PairKey): Set<string> {
+  // Guardrails: these fields are computed/controlled by backend and should not be mapped from Vault columns.
+  if (pairId === "trades") {
+    return new Set(["trade_buffer_id", "file_row_no", "file_id", "fund_id", "org_id", "symbol_id", "status"]);
+  }
+  if (pairId === "securities") {
+    return new Set(["symbol_uid", "fund_id"]);
+  }
+  return new Set();
+}
+
 type FieldMappingRow = { source_field: string; target_field: string };
 type MappingPair = {
   unique_source_key?: string | null;
@@ -274,6 +285,7 @@ function isAbortError(e: unknown): boolean {
 export function MappingIntegrationPage() {
   const [pairId, setPairId] = useState<PairKey>("trades");
   const pairTab = useMemo(() => PAIRS.find((p) => p.id === pairId)!, [pairId]);
+  const lockedTargets = useMemo(() => lockedTargetFieldsForPair(pairId), [pairId]);
 
   const [sourceFields, setSourceFields] = useState<string[]>([]);
   const [targetFields, setTargetFields] = useState<string[]>([]);
@@ -284,6 +296,7 @@ export function MappingIntegrationPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [uiWarn, setUiWarn] = useState<string | null>(null);
   const loadedPairsRef = useRef(new Set<PairKey>());
 
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
@@ -302,7 +315,7 @@ export function MappingIntegrationPage() {
     return inv;
   }, [mappings]);
 
-  const canLink = Boolean(selectedSource && selectedTarget);
+  const canLink = Boolean(selectedSource && selectedTarget && !lockedTargets.has(selectedTarget));
   const canUnlink = Boolean((selectedSource && mappings[selectedSource]) || (selectedTarget && targetToSource.get(selectedTarget)));
 
   useEffect(() => {
@@ -339,6 +352,15 @@ export function MappingIntegrationPage() {
           // Still refresh saved mappings if the user hasn't edited anything yet.
           setMappings((prev) => (Object.keys(prev).length === 0 ? { ...sugg, ...saved } : prev));
         }
+
+        // Warn if any locked targets are already mapped (saved from older UI / manual DB edits).
+        const lockedNow = lockedTargetFieldsForPair(pairId);
+        const bad = Object.entries({ ...sugg, ...saved }).filter(([, dst]) => lockedNow.has(dst));
+        setUiWarn(
+          bad.length
+            ? `Some mappings target locked Tychi fields (${bad.map(([, d]) => d).slice(0, 4).join(", ")}${bad.length > 4 ? "…" : ""}). They won't be applied by the integration.`
+            : null
+        );
       })
       .catch((e: unknown) => {
         if (stale || isAbortError(e)) return;
@@ -357,6 +379,10 @@ export function MappingIntegrationPage() {
 
   const link = () => {
     if (!selectedSource || !selectedTarget) return;
+    if (lockedTargets.has(selectedTarget)) {
+      setUiWarn(`"${selectedTarget}" is locked (computed by backend) and cannot be mapped.`);
+      return;
+    }
     if (targetToSource.get(selectedTarget)) return;
     setMappings((prev) => ({ ...prev, [selectedSource]: selectedTarget }));
     setSelectedSource(null);
@@ -445,6 +471,11 @@ export function MappingIntegrationPage() {
             {saveError}
           </div>
         ) : null}
+        {uiWarn ? (
+          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {uiWarn}
+          </div>
+        ) : null}
 
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Card className="p-4">
@@ -527,6 +558,7 @@ export function MappingIntegrationPage() {
                 targetFields.map((f) => {
                 const mappedBy = targetToSource.get(f);
                 const selected = selectedTarget === f;
+                const isLocked = lockedTargets.has(f);
                 return (
                   <button
                     key={f}
@@ -535,12 +567,20 @@ export function MappingIntegrationPage() {
                       "w-full border-b border-border px-4 py-2.5 text-left text-sm",
                       "hover:bg-muted/40",
                       selected && "bg-sky-50 text-sky-900",
-                      mappedBy && !selected && "text-muted-foreground"
+                      mappedBy && !selected && "text-muted-foreground",
+                      isLocked && "text-red-700 hover:bg-red-50"
                     )}
-                    onClick={() => setSelectedTarget((prev) => (prev === f ? null : f))}
+                    onClick={() => {
+                      if (isLocked) {
+                        setSelectedTarget(null);
+                        setUiWarn(`"${f}" is locked (computed by backend) and cannot be mapped.`);
+                        return;
+                      }
+                      setSelectedTarget((prev) => (prev === f ? null : f));
+                    }}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={cn("h-2 w-2 rounded-full", mappedBy ? "bg-emerald-500" : "bg-border")} />
+                      <span className={cn("h-2 w-2 rounded-full", isLocked ? "bg-red-500" : mappedBy ? "bg-emerald-500" : "bg-border")} />
                       <span className="font-medium">{f}</span>
                       {mappedBy ? (
                         <span className="ml-auto text-xs text-muted-foreground">← {mappedBy}</span>
@@ -587,6 +627,7 @@ export function MappingIntegrationPage() {
             <div className="divide-y divide-border">
               {Object.entries(mappings).map(([src, dst]) => {
                 const isEditing = editingSource === src;
+                const isLocked = lockedTargets.has(dst);
                 return (
                   <div key={src} className="grid grid-cols-[1fr_24px_1fr_80px] items-center gap-3 px-4 py-3">
                     <span className="truncate rounded-lg bg-sky-50 px-2 py-1 text-sm font-medium text-sky-900">{src}</span>
@@ -603,13 +644,23 @@ export function MappingIntegrationPage() {
                         }
                       >
                         {targetFields.map((f) => (
-                          <option key={f} value={f}>
+                          <option key={f} value={f} disabled={lockedTargets.has(f)}>
                             {f}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <span className="truncate rounded-lg bg-emerald-50 px-2 py-1 text-sm font-medium text-emerald-900">{dst}</span>
+                      <span
+                        className={cn(
+                          "truncate rounded-lg px-2 py-1 text-sm font-medium",
+                          isLocked ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-900"
+                        )}
+                        title={
+                          isLocked ? "Locked target field (computed by backend). This mapping will not be applied." : undefined
+                        }
+                      >
+                        {dst}
+                      </span>
                     )}
                     <div className="flex items-center justify-end gap-2">
                       <Button
