@@ -9,7 +9,7 @@ import { Page, PageHeader, Section } from "../../../components/common/page";
 import { ApiError, apiClient } from "../../../lib/api/client";
 
 type MappingKey = string; // sourceField
-type MappingValue = string; // targetField
+// MappingValue is represented by FieldMappingRow (direct or resolver).
 
 type PairKey = "trades" | "securities" | "accounts" | "exchanges" | "assettypes";
 type PairTab = {
@@ -38,7 +38,26 @@ function lockedTargetFieldsForPair(pairId: PairKey): Set<string> {
   return new Set();
 }
 
-type FieldMappingRow = { source_field: string; target_field: string };
+function resolverTargetsForPair(pairId: PairKey): Record<string, { resolver_name: string; expected_source_field: string }> {
+  // Targets that are "computed" but still map-able via resolver/function mappings.
+  if (pairId === "trades") {
+    return {
+      native_currency_id: { resolver_name: "resolveCurrencyIdFromCode", expected_source_field: "trade_currency" },
+      symbol_id: { resolver_name: "resolveSymbolUidFromSecurityId", expected_source_field: "security_id" },
+      broker_name: { resolver_name: "resolveBrokerIdFromAccountId", expected_source_field: "account_id" }
+    };
+  }
+  return {};
+}
+
+type FieldMappingType = "DIRECT" | "RESOLVER";
+type FieldMappingRow = {
+  source_field: string;
+  target_field: string;
+  mapping_type?: FieldMappingType;
+  resolver_name?: string | null;
+  resolver_config?: unknown;
+};
 type MappingPair = {
   unique_source_key?: string | null;
   unique_target_key?: string | null;
@@ -87,13 +106,21 @@ function normalizeFieldMappingsArray(v: unknown): FieldMappingRow[] {
     const r = row as Partial<FieldMappingRow & { sourceField?: string; targetField?: string }>;
     const sf = r.source_field ?? r.sourceField;
     const tf = r.target_field ?? r.targetField;
-    if (typeof sf === "string" && typeof tf === "string") out.push({ source_field: sf, target_field: tf });
+    if (typeof sf === "string" && typeof tf === "string") {
+      out.push({
+        source_field: sf,
+        target_field: tf,
+        mapping_type: (r.mapping_type as FieldMappingType | undefined) ?? "DIRECT",
+        resolver_name: r.resolver_name ?? null,
+        resolver_config: r.resolver_config
+      });
+    }
   }
   return out;
 }
 
-function normalizeFieldMappings(v: unknown): Record<string, string> {
-  return Object.fromEntries(normalizeFieldMappingsArray(v).map((x) => [x.source_field, x.target_field]));
+function normalizeFieldMappings(v: unknown): Record<string, FieldMappingRow> {
+  return Object.fromEntries(normalizeFieldMappingsArray(v).map((x) => [x.source_field, x]));
 }
 
 function pickStringArray(obj: Record<string, unknown>, keys: string[]): string[] {
@@ -286,6 +313,11 @@ export function MappingIntegrationPage() {
   const [pairId, setPairId] = useState<PairKey>("trades");
   const pairTab = useMemo(() => PAIRS.find((p) => p.id === pairId)!, [pairId]);
   const lockedTargets = useMemo(() => lockedTargetFieldsForPair(pairId), [pairId]);
+  const resolverTargets = useMemo(() => resolverTargetsForPair(pairId), [pairId]);
+  const hardLockedTargets = useMemo(() => {
+    const rt = new Set(Object.keys(resolverTargets));
+    return new Set(Array.from(lockedTargets).filter((x) => !rt.has(x)));
+  }, [lockedTargets, resolverTargets]);
 
   const [sourceFields, setSourceFields] = useState<string[]>([]);
   const [targetFields, setTargetFields] = useState<string[]>([]);
@@ -302,20 +334,24 @@ export function MappingIntegrationPage() {
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
   const [editingSource, setEditingSource] = useState<string | null>(null);
-  const [mappings, setMappings] = useState<Record<MappingKey, MappingValue>>({});
+  const [mappings, setMappings] = useState<Record<MappingKey, FieldMappingRow>>({});
 
   const mappedCount = Object.keys(mappings).length;
   const totalCount = sourceFields.length;
 
   const targetToSource = useMemo(() => {
     const inv = new Map<string, string>();
-    for (const [src, dst] of Object.entries(mappings)) {
-      inv.set(dst, src);
+    for (const [src, row] of Object.entries(mappings)) {
+      inv.set(row.target_field, src);
     }
     return inv;
   }, [mappings]);
 
-  const canLink = Boolean(selectedSource && selectedTarget && !lockedTargets.has(selectedTarget));
+  const canLink = Boolean(
+    selectedSource &&
+      selectedTarget &&
+      (!hardLockedTargets.has(selectedTarget) || Boolean(resolverTargets[selectedTarget]))
+  );
   const canUnlink = Boolean((selectedSource && mappings[selectedSource]) || (selectedTarget && targetToSource.get(selectedTarget)));
 
   useEffect(() => {
@@ -346,19 +382,29 @@ export function MappingIntegrationPage() {
         // First time you open a pair: start with suggested mappings, then apply saved mappings over them.
         // Subsequent opens: keep user's current local edits for that pair.
         if (!loadedPairsRef.current.has(pairId)) {
-          setMappings({ ...sugg, ...saved });
+          const seeded: Record<string, FieldMappingRow> = {};
+          for (const [sf, tf] of Object.entries(sugg)) seeded[sf] = { source_field: sf, target_field: tf, mapping_type: "DIRECT" };
+          setMappings({ ...seeded, ...saved });
           loadedPairsRef.current.add(pairId);
         } else {
           // Still refresh saved mappings if the user hasn't edited anything yet.
-          setMappings((prev) => (Object.keys(prev).length === 0 ? { ...sugg, ...saved } : prev));
+          setMappings((prev) => {
+            if (Object.keys(prev).length !== 0) return prev;
+            const seeded: Record<string, FieldMappingRow> = {};
+            for (const [sf, tf] of Object.entries(sugg)) seeded[sf] = { source_field: sf, target_field: tf, mapping_type: "DIRECT" };
+            return { ...seeded, ...saved };
+          });
         }
 
         // Warn if any locked targets are already mapped (saved from older UI / manual DB edits).
         const lockedNow = lockedTargetFieldsForPair(pairId);
-        const bad = Object.entries({ ...sugg, ...saved }).filter(([, dst]) => lockedNow.has(dst));
+        const mergedNow: Record<string, FieldMappingRow> = {};
+        for (const [sf, tf] of Object.entries(sugg)) mergedNow[sf] = { source_field: sf, target_field: tf, mapping_type: "DIRECT" };
+        for (const [sf, row] of Object.entries(saved)) mergedNow[sf] = row;
+        const bad = Object.values(mergedNow).filter((r) => lockedNow.has(r.target_field));
         setUiWarn(
           bad.length
-            ? `Some mappings target locked Tychi fields (${bad.map(([, d]) => d).slice(0, 4).join(", ")}${bad.length > 4 ? "…" : ""}). They won't be applied by the integration.`
+            ? `Some mappings target locked Tychi fields (${bad.map((r) => r.target_field).slice(0, 4).join(", ")}${bad.length > 4 ? "…" : ""}). They won't be applied by the integration.`
             : null
         );
       })
@@ -379,12 +425,34 @@ export function MappingIntegrationPage() {
 
   const link = () => {
     if (!selectedSource || !selectedTarget) return;
-    if (lockedTargets.has(selectedTarget)) {
+    if (hardLockedTargets.has(selectedTarget)) {
       setUiWarn(`"${selectedTarget}" is locked (computed by backend) and cannot be mapped.`);
       return;
     }
     if (targetToSource.get(selectedTarget)) return;
-    setMappings((prev) => ({ ...prev, [selectedSource]: selectedTarget }));
+    const resolver = resolverTargets[selectedTarget];
+    if (resolver) {
+      if (selectedSource !== resolver.expected_source_field) {
+        setUiWarn(
+          `To map "${selectedTarget}", select source "${resolver.expected_source_field}" (required for function mapping).`
+        );
+        return;
+      }
+      setMappings((prev) => ({
+        ...prev,
+        [selectedSource]: {
+          source_field: selectedSource,
+          target_field: selectedTarget,
+          mapping_type: "RESOLVER",
+          resolver_name: resolver.resolver_name
+        }
+      }));
+    } else {
+      setMappings((prev) => ({
+        ...prev,
+        [selectedSource]: { source_field: selectedSource, target_field: selectedTarget, mapping_type: "DIRECT" }
+      }));
+    }
     setSelectedSource(null);
     setSelectedTarget(null);
   };
@@ -410,7 +478,13 @@ export function MappingIntegrationPage() {
     setSaveError(null);
     try {
       const payload = {
-        mappings: Object.entries(mappings).map(([source_field, target_field]) => ({ source_field, target_field })),
+        mappings: Object.values(mappings).map((m) => ({
+          source_field: m.source_field,
+          target_field: m.target_field,
+          mapping_type: m.mapping_type ?? "DIRECT",
+          resolver_name: m.mapping_type === "RESOLVER" ? (m.resolver_name ?? null) : null,
+          resolver_config: m.mapping_type === "RESOLVER" ? (m.resolver_config ?? null) : null
+        })),
         unique_source_key: uniqueSourceKey.trim() ? uniqueSourceKey.trim() : undefined,
         unique_target_key: uniqueTargetKey.trim() ? uniqueTargetKey.trim() : undefined
       };
@@ -509,7 +583,7 @@ export function MappingIntegrationPage() {
                 <div className="px-4 py-10 text-center text-sm text-muted-foreground">Loading…</div>
               ) : (
                 sourceFields.map((f) => {
-                const mapped = mappings[f];
+                const mapped = mappings[f]?.target_field;
                 const selected = selectedSource === f;
                 return (
                   <button
@@ -558,7 +632,8 @@ export function MappingIntegrationPage() {
                 targetFields.map((f) => {
                 const mappedBy = targetToSource.get(f);
                 const selected = selectedTarget === f;
-                const isLocked = lockedTargets.has(f);
+                const isLocked = hardLockedTargets.has(f);
+                const hasResolver = Boolean(resolverTargets[f]);
                 return (
                   <button
                     key={f}
@@ -568,7 +643,8 @@ export function MappingIntegrationPage() {
                       "hover:bg-muted/40",
                       selected && "bg-sky-50 text-sky-900",
                       mappedBy && !selected && "text-muted-foreground",
-                      isLocked && "text-red-700 hover:bg-red-50"
+                      isLocked && "text-red-700 hover:bg-red-50",
+                      !isLocked && hasResolver && "text-amber-700 hover:bg-amber-50"
                     )}
                     onClick={() => {
                       if (isLocked) {
@@ -580,7 +656,12 @@ export function MappingIntegrationPage() {
                     }}
                   >
                     <div className="flex items-center gap-2">
-                      <span className={cn("h-2 w-2 rounded-full", isLocked ? "bg-red-500" : mappedBy ? "bg-emerald-500" : "bg-border")} />
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          isLocked ? "bg-red-500" : hasResolver ? "bg-amber-500" : mappedBy ? "bg-emerald-500" : "bg-border"
+                        )}
+                      />
                       <span className="font-medium">{f}</span>
                       {mappedBy ? (
                         <span className="ml-auto text-xs text-muted-foreground">← {mappedBy}</span>
@@ -626,8 +707,10 @@ export function MappingIntegrationPage() {
           ) : (
             <div className="divide-y divide-border">
               {Object.entries(mappings).map(([src, dst]) => {
+                const row = dst as FieldMappingRow;
                 const isEditing = editingSource === src;
-                const isLocked = lockedTargets.has(dst);
+                const isLocked = hardLockedTargets.has(row.target_field);
+                const hasResolver = Boolean(resolverTargets[row.target_field]);
                 return (
                   <div key={src} className="grid grid-cols-[1fr_24px_1fr_80px] items-center gap-3 px-4 py-3">
                     <span className="truncate rounded-lg bg-sky-50 px-2 py-1 text-sm font-medium text-sky-900">{src}</span>
@@ -635,16 +718,26 @@ export function MappingIntegrationPage() {
                     {isEditing ? (
                       <select
                         className="h-9 w-full rounded-xl border border-border bg-transparent px-2 text-sm"
-                        value={dst}
+                        value={row.target_field}
                         onChange={(e) =>
                           setMappings((prev) => ({
                             ...prev,
-                            [src]: asText(e.target.value)
+                            [src]: {
+                              ...(prev[src] ?? { source_field: src, mapping_type: "DIRECT" }),
+                              source_field: src,
+                              target_field: asText(e.target.value),
+                              mapping_type:
+                                resolverTargets[asText(e.target.value)]?.expected_source_field === src ? "RESOLVER" : "DIRECT",
+                              resolver_name:
+                                resolverTargets[asText(e.target.value)]?.expected_source_field === src
+                                  ? resolverTargets[asText(e.target.value)].resolver_name
+                                  : null
+                            }
                           }))
                         }
                       >
                         {targetFields.map((f) => (
-                          <option key={f} value={f} disabled={lockedTargets.has(f)}>
+                          <option key={f} value={f} disabled={hardLockedTargets.has(f)}>
                             {f}
                           </option>
                         ))}
@@ -653,13 +746,21 @@ export function MappingIntegrationPage() {
                       <span
                         className={cn(
                           "truncate rounded-lg px-2 py-1 text-sm font-medium",
-                          isLocked ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-900"
+                          isLocked
+                            ? "bg-red-50 text-red-800"
+                            : row.mapping_type === "RESOLVER" || hasResolver
+                              ? "bg-amber-50 text-amber-900"
+                              : "bg-emerald-50 text-emerald-900"
                         )}
                         title={
-                          isLocked ? "Locked target field (computed by backend). This mapping will not be applied." : undefined
+                          isLocked
+                            ? "Locked target field (computed by backend). This mapping will not be applied."
+                            : row.mapping_type === "RESOLVER"
+                              ? `Function mapping: ${row.resolver_name || "resolver"}`
+                              : undefined
                         }
                       >
-                        {dst}
+                        {row.target_field}
                       </span>
                     )}
                     <div className="flex items-center justify-end gap-2">
