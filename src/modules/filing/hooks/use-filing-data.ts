@@ -32,6 +32,12 @@ export function useFilingData(filters?: {
   const [securities, setSecurities] = useState<SecurityMaster[]>([]);
   const [securityBatches, setSecurityBatches] = useState<SecurityBatchSummary[]>([]);
   const [inboxRawFiles, setInboxRawFiles] = useState<InboxRawFileSummary[]>([]);
+  const [positionBatches, setPositionBatches] = useState<InboxRawFileSummary[]>([]);
+  const [cashTransactionBatches, setCashTransactionBatches] = useState<InboxRawFileSummary[]>([]);
+  const [cashBalanceBatches, setCashBalanceBatches] = useState<InboxRawFileSummary[]>([]);
+  const [fxRateBatches, setFxRateBatches] = useState<InboxRawFileSummary[]>([]);
+  const [corporateActionBatches, setCorporateActionBatches] = useState<InboxRawFileSummary[]>([]);
+  const [priceBatches, setPriceBatches] = useState<InboxRawFileSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -74,7 +80,13 @@ export function useFilingData(filters?: {
           safeCorporateActions,
           filingApi.getSecurities({ accountId: filters?.accountId, limit: 100, offset: 0 }, controller.signal),
           filingApi.getSecurityBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
-          filingApi.getInboxRawFiles({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal)
+          filingApi.getInboxRawFiles({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getPositionBatches({ accountId: filters?.accountId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getCashTransactionBatches({ accountId: filters?.accountId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getCashBalanceBatches({ accountId: filters?.accountId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getPriceBatches({ securityId: filters?.securityId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getFxRateBatches({ base: filters?.fxBase, quote: filters?.fxQuote, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getCorporateActionBatches({ accountId: filters?.accountId, securityId: filters?.securityId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal)
         ]);
 
         const nextWarnings: string[] = [];
@@ -98,6 +110,12 @@ export function useFilingData(filters?: {
         setIfOk(results[7] as PromiseSettledResult<SecurityMaster[]>, setSecurities, "Securities", []);
         setIfOk(results[8] as PromiseSettledResult<SecurityBatchSummary[]>, setSecurityBatches, "Security batches", []);
         setIfOk(results[9] as PromiseSettledResult<InboxRawFileSummary[]>, setInboxRawFiles, "Inbox files", []);
+        setIfOk(results[10] as PromiseSettledResult<InboxRawFileSummary[]>, setPositionBatches, "Position batches", []);
+        setIfOk(results[11] as PromiseSettledResult<InboxRawFileSummary[]>, setCashTransactionBatches, "Cash transaction batches", []);
+        setIfOk(results[12] as PromiseSettledResult<InboxRawFileSummary[]>, setCashBalanceBatches, "Cash balance batches", []);
+        setIfOk(results[13] as PromiseSettledResult<InboxRawFileSummary[]>, setPriceBatches, "Price batches", []);
+        setIfOk(results[14] as PromiseSettledResult<InboxRawFileSummary[]>, setFxRateBatches, "FX rate batches", []);
+        setIfOk(results[15] as PromiseSettledResult<InboxRawFileSummary[]>, setCorporateActionBatches, "Corporate action batches", []);
 
         setWarnings(nextWarnings);
 
@@ -135,6 +153,12 @@ export function useFilingData(filters?: {
       securities,
       securityBatches,
       inboxRawFiles,
+      positionBatches,
+      cashTransactionBatches,
+      cashBalanceBatches,
+      priceBatches,
+      fxRateBatches,
+      corporateActionBatches,
       loading,
       error,
       warnings
@@ -150,6 +174,12 @@ export function useFilingData(filters?: {
       securities,
       securityBatches,
       inboxRawFiles,
+      positionBatches,
+      cashTransactionBatches,
+      cashBalanceBatches,
+      priceBatches,
+      fxRateBatches,
+      corporateActionBatches,
       loading,
       error,
       warnings

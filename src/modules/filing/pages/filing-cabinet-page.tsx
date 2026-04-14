@@ -13,7 +13,18 @@ import { useFilingData } from "../hooks/use-filing-data";
 import { Drawer } from "../../../components/ui/drawer";
 import { DataTable, type DataTableColumn } from "../../../components/common/data-table";
 import { Page, PageHeader, Section } from "../../../components/common/page";
-import type { InboxRawFileSummary, SecurityBatchSummary, SecurityMaster, Trade } from "../types/filing";
+import type {
+  CashBalance,
+  CashTransaction,
+  CorporateAction,
+  FxRate,
+  InboxRawFileSummary,
+  Position,
+  Price,
+  SecurityBatchSummary,
+  SecurityMaster,
+  Trade
+} from "../types/filing";
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +44,71 @@ const TRADE_COLUMNS: DataTableColumn<Trade>[] = [
   { id: "glStatus", header: "GL Status", sortValue: (r) => r.glStatus ?? "", accessor: (r) => r.glStatus ?? "-" }
 ];
 
+const POSITION_COLUMNS: DataTableColumn<Position>[] = [
+  { id: "positionDate", header: "Date", sortValue: (r) => new Date(r.positionDate).getTime(), cell: (r) => formatDate(r.positionDate) },
+  { id: "security", header: "Security", sortValue: (r) => r.securityName ?? r.securityId, cell: (r) => <span className="font-medium">{r.securityName ?? r.securityId}</span> },
+  { id: "quantity", header: "Quantity", align: "right", sortValue: (r) => r.quantity, cell: (r) => <span className="tabular-nums">{formatNumber(r.quantity)}</span> },
+  { id: "costBasis", header: "Cost Basis", align: "right", sortValue: (r) => r.costBasis, cell: (r) => <span className="tabular-nums">{formatNumber(r.costBasis)}</span> },
+  { id: "marketValue", header: "Market Value", align: "right", sortValue: (r) => r.marketValue, cell: (r) => <span className="tabular-nums">{formatNumber(r.marketValue)}</span> },
+  {
+    id: "unrealisedPnl",
+    header: "Unrealised PnL",
+    align: "right",
+    sortValue: (r) => r.unrealisedPnl,
+    cell: (r) => (
+      <span className={r.unrealisedPnl >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatNumber(r.unrealisedPnl)}</span>
+    )
+  },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" }
+];
+
+const CASH_TXN_COLUMNS: DataTableColumn<CashTransaction>[] = [
+  { id: "transactionDate", header: "Date", sortValue: (r) => new Date(r.transactionDate).getTime(), cell: (r) => formatDate(r.transactionDate) },
+  { id: "transactionType", header: "Type", sortValue: (r) => r.transactionType ?? "", accessor: (r) => r.transactionType ?? "-" },
+  {
+    id: "amount",
+    header: "Amount",
+    align: "right",
+    sortValue: (r) => r.amount,
+    cell: (r) => (
+      <span className={r.amount >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatCurrency(r.amount, r.currency)}</span>
+    )
+  },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" },
+  { id: "description", header: "Description", sortValue: (r) => r.description ?? "", accessor: (r) => r.description ?? "-" }
+];
+
+const CASH_BALANCE_COLUMNS: DataTableColumn<CashBalance>[] = [
+  { id: "balanceDate", header: "As Of", sortValue: (r) => new Date(r.balanceDate).getTime(), cell: (r) => formatDate(r.balanceDate) },
+  { id: "account", header: "Account", sortValue: (r) => r.accountName ?? r.accountId, cell: (r) => <span className="font-medium">{r.accountName ?? r.accountId}</span> },
+  { id: "sourceSystem", header: "Source", sortValue: (r) => r.accountSourceSystem ?? "", cell: (r) => (r.accountSourceSystem ? <Badge className="bg-slate-100 text-slate-800">{r.accountSourceSystem}</Badge> : "-") },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" },
+  { id: "balance", header: "Balance", align: "right", sortValue: (r) => r.balance, cell: (r) => <span className="tabular-nums">{formatNumber(r.balance)}</span> }
+];
+
+const PRICE_COLUMNS: DataTableColumn<Price>[] = [
+  { id: "priceDate", header: "Date", sortValue: (r) => new Date(r.priceDate).getTime(), cell: (r) => formatDate(r.priceDate) },
+  { id: "security", header: "Security", sortValue: (r) => r.securityName ?? r.securityId, cell: (r) => <span className="font-medium">{r.securityName ?? r.securityId}</span> },
+  { id: "closePrice", header: "Price", align: "right", sortValue: (r) => r.closePrice, cell: (r) => <span className="tabular-nums">{formatNumber(r.closePrice)}</span> },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" },
+  { id: "priceType", header: "Type", sortValue: (r) => r.priceType ?? "", accessor: (r) => r.priceType ?? "-" }
+];
+
+const FX_COLUMNS: DataTableColumn<FxRate>[] = [
+  { id: "rateDate", header: "Date", sortValue: (r) => new Date(r.rateDate).getTime(), cell: (r) => formatDate(r.rateDate) },
+  { id: "baseCurrency", header: "Base", sortValue: (r) => r.baseCurrency ?? "", cell: (r) => <span className="font-medium">{r.baseCurrency}</span> },
+  { id: "quoteCurrency", header: "Quote", sortValue: (r) => r.quoteCurrency ?? "", cell: (r) => <span className="font-medium">{r.quoteCurrency}</span> },
+  { id: "rate", header: "Rate", align: "right", sortValue: (r) => r.rate, cell: (r) => <span className="tabular-nums">{formatNumber(r.rate)}</span> },
+  { id: "source", header: "Source", sortValue: (r) => r.source ?? "", accessor: (r) => r.source ?? "-" }
+];
+
+const CORP_ACTION_COLUMNS: DataTableColumn<CorporateAction>[] = [
+  { id: "exDate", header: "Ex Date", sortValue: (r) => new Date(r.exDate).getTime(), cell: (r) => formatDate(r.exDate) },
+  { id: "security", header: "Security", sortValue: (r) => r.securityName ?? r.securityId, cell: (r) => <span className="font-medium">{r.securityName ?? r.securityId}</span> },
+  { id: "actionType", header: "Action Type", sortValue: (r) => r.actionType ?? "", accessor: (r) => r.actionType ?? "-" },
+  { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" }
+];
+
 export function FilingCabinetPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -42,8 +118,27 @@ export function FilingCabinetPage() {
   const [fxQuote, setFxQuote] = useState("");
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState("trades");
-  const { trades, positions, cashTransactions, cashBalances, prices, fxRates, corporateActions, securities, securityBatches, inboxRawFiles, loading, error, warnings } =
-    useFilingData({
+  const {
+    trades,
+    positions,
+    cashTransactions,
+    cashBalances,
+    prices,
+    fxRates,
+    corporateActions,
+    securities,
+    securityBatches,
+    inboxRawFiles,
+    positionBatches,
+    cashTransactionBatches,
+    cashBalanceBatches,
+    priceBatches,
+    fxRateBatches,
+    corporateActionBatches,
+    loading,
+    error,
+    warnings
+  } = useFilingData({
     from: fromDate || undefined,
     to: toDate || undefined,
     accountId: accountId.trim() || undefined,
@@ -59,6 +154,15 @@ export function FilingCabinetPage() {
   const [rawTradesError, setRawTradesError] = useState<string | null>(null);
   const rawTradesAbortRef = useRef<AbortController | null>(null);
 
+  type RawKind = "positions" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
+  const [rawOpen, setRawOpen] = useState(false);
+  const [rawKind, setRawKind] = useState<RawKind>("positions");
+  const [rawFile, setRawFile] = useState<InboxRawFileSummary | null>(null);
+  const [rawLoading, setRawLoading] = useState(false);
+  const [rawError, setRawError] = useState<string | null>(null);
+  const [rawRows, setRawRows] = useState<unknown[]>([]);
+  const rawAbortRef = useRef<AbortController | null>(null);
+
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [batchModalBatch, setBatchModalBatch] = useState<SecurityBatchSummary | null>(null);
   const [batchSecurities, setBatchSecurities] = useState<SecurityMaster[]>([]);
@@ -72,6 +176,8 @@ export function FilingCabinetPage() {
       rawTradesAbortRef.current = null;
       batchAbortRef.current?.abort();
       batchAbortRef.current = null;
+      rawAbortRef.current?.abort();
+      rawAbortRef.current = null;
     };
   }, []);
 
@@ -111,6 +217,67 @@ export function FilingCabinetPage() {
     inboxRawFiles,
     positions
   ]);
+
+  const batchFiltered = useMemo(() => {
+    const inRange = (dateInput: string) => {
+      const date = new Date(dateInput);
+      const from = fromDate ? new Date(fromDate) : null;
+      const to = toDate ? new Date(toDate) : null;
+      if (from && date < from) return false;
+      if (to && date > to) return false;
+      return true;
+    };
+
+    const safe = (v: string | undefined | null) => (v ? v : "");
+
+    return {
+      positions: positionBatches.filter((r) => inRange(safe(r.createdAt))),
+      cash: cashTransactionBatches.filter((r) => inRange(safe(r.createdAt))),
+      cashBalances: cashBalanceBatches.filter((r) => inRange(safe(r.createdAt))),
+      prices: priceBatches.filter((r) => inRange(safe(r.createdAt))),
+      fxRates: fxRateBatches.filter((r) => inRange(safe(r.createdAt))),
+      corporateActions: corporateActionBatches.filter((r) => inRange(safe(r.createdAt)))
+    };
+  }, [fromDate, toDate, positionBatches, cashTransactionBatches, cashBalanceBatches, priceBatches, fxRateBatches, corporateActionBatches]);
+
+  const openRawFile = async (kind: RawKind, file: InboxRawFileSummary) => {
+    setRawKind(kind);
+    setRawFile(file);
+    setRawOpen(true);
+    setRawRows([]);
+    setRawError(null);
+    setRawLoading(true);
+
+    rawAbortRef.current?.abort();
+    const controller = new AbortController();
+    rawAbortRef.current = controller;
+
+    try {
+      if (kind === "positions") {
+        const res = await filingApi.getPositions({ accountId: accountId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "cash") {
+        const res = await filingApi.getCashTransactions({ accountId: accountId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "cashBalances") {
+        const res = await filingApi.getCashBalances({ accountId: accountId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "prices") {
+        const res = await filingApi.getPrices({ securityId: globalSecurityId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "fxRates") {
+        const res = await filingApi.getFxRates({ base: fxBase.trim().toUpperCase() || undefined, quote: fxQuote.trim().toUpperCase() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "corporateActions") {
+        const res = await filingApi.getCorporateActions({ accountId: accountId.trim() || undefined, securityId: globalSecurityId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
+        setRawRows(res.items);
+      }
+    } catch {
+      setRawError("Unable to load records for this file.");
+    } finally {
+      setRawLoading(false);
+    }
+  };
 
   const paginate = <T,>(list: T[]) => {
     const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
@@ -327,152 +494,86 @@ export function FilingCabinetPage() {
           </TabsContent>
 
           <TabsContent value="positions">
-            {dateFiltered.positions.length === 0 ? <EmptyState title="No positions" description="No position data returned yet." /> : null}
-            {dateFiltered.positions.length > 0 ? (
-              <TableContainer currentPage={page} totalPages={paginate(dateFiltered.positions).totalPages} onPageChange={setPage}>
-                <table className="min-w-full text-sm">
-                  <thead className="text-left text-muted-foreground"><tr>{["Security", "Quantity", "Cost Basis", "Market Value", "Unrealised PnL"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
-                  <tbody>
-                    {paginate(dateFiltered.positions).items.map((position) => (
-                      <tr key={position.id} className="border-t border-border">
-                        <td className="px-4 py-3">{position.securityName ?? position.securityId}</td><td className="px-4 py-3">{formatNumber(position.quantity)}</td>
-                        <td className="px-4 py-3">{formatNumber(position.costBasis)}</td><td className="px-4 py-3">{formatNumber(position.marketValue)}</td>
-                        <td className={position.unrealisedPnl >= 0 ? "px-4 py-3 text-emerald-700" : "px-4 py-3 text-red-700"}>{formatNumber(position.unrealisedPnl)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableContainer>
-            ) : null}
+            <Section title="Position batches" description="One row per raw file. Click a row to view only that file's positions.">
+              <DataTable
+                data={batchFiltered.positions}
+                columns={rawFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("positions", row)}
+                emptyTitle="No position batches"
+                emptyDescription="Try adjusting the date range."
+              />
+            </Section>
           </TabsContent>
 
           <TabsContent value="cash">
-            {dateFiltered.cash.length === 0 ? <EmptyState title="No cash movements" description="No cash transactions for selected dates." /> : null}
-            {dateFiltered.cash.length > 0 ? (
-              <TableContainer currentPage={page} totalPages={paginate(dateFiltered.cash).totalPages} onPageChange={setPage}>
-                <table className="min-w-full text-sm">
-                  <thead className="text-left text-muted-foreground"><tr>{["Date", "Type", "Amount", "Currency", "Description"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr></thead>
-                  <tbody>
-                    {paginate(dateFiltered.cash).items.map((cash) => (
-                      <tr key={cash.id} className="border-t border-border">
-                        <td className="px-4 py-3">{formatDate(cash.transactionDate)}</td><td className="px-4 py-3">{cash.transactionType}</td>
-                        <td className={cash.amount >= 0 ? "px-4 py-3 text-emerald-700" : "px-4 py-3 text-red-700"}>{formatCurrency(cash.amount, cash.currency)}</td>
-                        <td className="px-4 py-3">{cash.currency}</td><td className="px-4 py-3">{cash.description}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableContainer>
-            ) : null}
+            <Section title="Cash transaction batches" description="One row per raw file. Click a row to view only that file's cash transactions.">
+              <DataTable
+                data={batchFiltered.cash}
+                columns={rawFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("cash", row)}
+                emptyTitle="No cash transaction batches"
+                emptyDescription="Try adjusting the date range."
+              />
+            </Section>
           </TabsContent>
 
           <TabsContent value="cashBalances">
-            {dateFiltered.cashBalances.length === 0 ? <EmptyState title="No cash balances" description="No cash balance snapshots for selected dates." /> : null}
-            {dateFiltered.cashBalances.length > 0 ? (
-              <TableContainer currentPage={page} totalPages={paginate(dateFiltered.cashBalances).totalPages} onPageChange={setPage}>
-                <table className="min-w-full text-sm">
-                  <thead className="text-left text-muted-foreground">
-                    <tr>{["As Of", "Account", "Source", "Currency", "Balance"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {paginate(dateFiltered.cashBalances).items.map((row) => (
-                      <tr key={row.id} className="border-t border-border">
-                        <td className="px-4 py-3">{formatDate(row.balanceDate)}</td>
-                        <td className="px-4 py-3">
-                          <span className="font-medium">{row.accountName ?? row.accountId}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {row.accountSourceSystem ? <Badge className="bg-slate-100 text-slate-800">{row.accountSourceSystem}</Badge> : "-"}
-                        </td>
-                        <td className="px-4 py-3">{row.currency}</td>
-                        <td className="px-4 py-3">{formatNumber(row.balance)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableContainer>
-            ) : null}
+            <Section title="Cash balance batches" description="One row per raw file. Click a row to view only that file's cash balances.">
+              <DataTable
+                data={batchFiltered.cashBalances}
+                columns={rawFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("cashBalances", row)}
+                emptyTitle="No cash balance batches"
+                emptyDescription="Try adjusting the date range."
+              />
+            </Section>
           </TabsContent>
 
           <TabsContent value="prices">
-            {dateFiltered.prices.length === 0 ? <EmptyState title="No prices" description="No security prices for selected dates." /> : null}
-            {dateFiltered.prices.length > 0 ? (
-              <TableContainer currentPage={page} totalPages={paginate(dateFiltered.prices).totalPages} onPageChange={setPage}>
-                <table className="min-w-full text-sm">
-                  <thead className="text-left text-muted-foreground">
-                    <tr>{["Date", "Security", "Price", "Currency"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {paginate(dateFiltered.prices).items.map((row) => (
-                      <tr key={row.id} className="border-t border-border">
-                        <td className="px-4 py-3">{formatDate(row.priceDate)}</td>
-                        <td className="px-4 py-3">{row.securityName ?? row.securityId}</td>
-                        <td className="px-4 py-3">{formatNumber(row.closePrice)}</td>
-                        <td className="px-4 py-3">{row.currency}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableContainer>
-            ) : null}
+            <Section title="Price batches" description="One row per raw file. Click a row to view only that file's prices.">
+              <DataTable
+                data={batchFiltered.prices}
+                columns={rawFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("prices", row)}
+                emptyTitle="No price batches"
+                emptyDescription="Try adjusting the date range."
+              />
+            </Section>
           </TabsContent>
 
           <TabsContent value="fxRates">
-            {dateFiltered.fxRates.length === 0 ? <EmptyState title="No FX rates" description="No FX rates for selected dates." /> : null}
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input value={fxBase} onChange={(e) => setFxBase(e.target.value)} placeholder="Base (e.g. USD)" className="w-full sm:w-[180px]" />
               <Input value={fxQuote} onChange={(e) => setFxQuote(e.target.value)} placeholder="Quote (e.g. EUR)" className="w-full sm:w-[180px]" />
               <div className="text-xs text-muted-foreground">Optional: set base/quote to filter pairs.</div>
             </div>
-            {dateFiltered.fxRates.length > 0 ? (
-              <TableContainer currentPage={page} totalPages={paginate(dateFiltered.fxRates).totalPages} onPageChange={setPage}>
-                <table className="min-w-full text-sm">
-                  <thead className="text-left text-muted-foreground">
-                    <tr>
-                      {["Date", "Base Currency", "Quote Currency", "Rate", "Source"].map((h) => (
-                        <th key={h} className="px-4 py-3">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginate(dateFiltered.fxRates).items.map((row) => (
-                      <tr key={row.id} className="border-t border-border">
-                        <td className="px-4 py-3">{formatDate(row.rateDate)}</td>
-                        <td className="px-4 py-3 font-medium">{row.baseCurrency}</td>
-                        <td className="px-4 py-3 font-medium">{row.quoteCurrency}</td>
-                        <td className="px-4 py-3 tabular-nums">{formatNumber(row.rate)}</td>
-                        <td className="px-4 py-3">{row.source ?? "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableContainer>
-            ) : null}
+            <Section title="FX rate batches" description="One row per raw file. Click a row to view only that file's FX rates.">
+              <DataTable
+                data={batchFiltered.fxRates}
+                columns={rawFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("fxRates", row)}
+                emptyTitle="No FX rate batches"
+                emptyDescription="Try adjusting the date range."
+              />
+            </Section>
           </TabsContent>
 
           <TabsContent value="corporateActions">
-            {dateFiltered.corporateActions.length === 0 ? <EmptyState title="No corporate actions" description="No corporate actions for selected dates." /> : null}
-            {dateFiltered.corporateActions.length > 0 ? (
-              <TableContainer currentPage={page} totalPages={paginate(dateFiltered.corporateActions).totalPages} onPageChange={setPage}>
-                <table className="min-w-full text-sm">
-                  <thead className="text-left text-muted-foreground">
-                    <tr>{["Ex Date", "Security", "Action Type", "Status"].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {paginate(dateFiltered.corporateActions).items.map((row) => (
-                      <tr key={row.id} className="border-t border-border">
-                        <td className="px-4 py-3">{formatDate(row.exDate)}</td>
-                        <td className="px-4 py-3">{row.securityName ?? row.securityId}</td>
-                        <td className="px-4 py-3">{row.actionType}</td>
-                        <td className="px-4 py-3">{row.status}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableContainer>
-            ) : null}
+            <Section title="Corporate action batches" description="One row per raw file. Click a row to view only that file's corporate actions.">
+              <DataTable
+                data={batchFiltered.corporateActions}
+                columns={rawFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("corporateActions", row)}
+                emptyTitle="No corporate action batches"
+                emptyDescription="Try adjusting the date range."
+              />
+            </Section>
           </TabsContent>
 
           <TabsContent value="securities">
@@ -643,6 +744,20 @@ export function FilingCabinetPage() {
         }}
       />
 
+      <RawFileRecordsModal
+        open={rawOpen}
+        kind={rawKind}
+        file={rawFile}
+        loading={rawLoading}
+        error={rawError}
+        rows={rawRows}
+        onClose={() => {
+          rawAbortRef.current?.abort();
+          rawAbortRef.current = null;
+          setRawOpen(false);
+        }}
+      />
+
       <SecurityBatchSecuritiesModal
         open={batchModalOpen}
         batch={batchModalBatch}
@@ -770,6 +885,83 @@ function RawFileTradesModal({
       ) : null}
       {!loading && trades.length > 0 ? (
         <DataTable data={trades} columns={TRADE_COLUMNS} getRowId={(r) => r.id} initialPageSize={20} />
+      ) : null}
+    </Drawer>
+  );
+}
+
+function RawFileRecordsModal({
+  open,
+  kind,
+  file,
+  loading,
+  error,
+  rows,
+  onClose
+}: {
+  open: boolean;
+  kind: "positions" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
+  file: InboxRawFileSummary | null;
+  loading: boolean;
+  error: string | null;
+  rows: unknown[];
+  onClose: () => void;
+}) {
+  if (!open || !file) return null;
+
+  const title =
+    kind === "positions"
+      ? "Positions"
+      : kind === "cash"
+        ? "Cash transactions"
+        : kind === "cashBalances"
+          ? "Cash balances"
+          : kind === "prices"
+            ? "Prices"
+            : kind === "fxRates"
+              ? "FX rates"
+              : "Corporate actions";
+
+  const columns =
+    kind === "positions"
+      ? (POSITION_COLUMNS as DataTableColumn<unknown>[])
+      : kind === "cash"
+        ? (CASH_TXN_COLUMNS as DataTableColumn<unknown>[])
+        : kind === "cashBalances"
+          ? (CASH_BALANCE_COLUMNS as DataTableColumn<unknown>[])
+          : kind === "prices"
+            ? (PRICE_COLUMNS as DataTableColumn<unknown>[])
+            : kind === "fxRates"
+              ? (FX_COLUMNS as DataTableColumn<unknown>[])
+              : (CORP_ACTION_COLUMNS as DataTableColumn<unknown>[]);
+
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={`${file.fileName}${file.createdAt ? ` • ${formatDate(file.createdAt)}` : ""}`}
+      widthClassName="w-[min(980px,calc(100vw-24px))]"
+      placement="center"
+    >
+      {error ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+      {loading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : null}
+      {!loading && rows.length === 0 && !error ? (
+        <EmptyState title="No records for this file" description="This raw file has no linked records for the selected type." />
+      ) : null}
+      {!loading && rows.length > 0 ? (
+        <DataTable
+          data={rows}
+          columns={columns}
+          getRowId={(r) => String((r as { id?: unknown }).id ?? Math.random())}
+          initialPageSize={20}
+        />
       ) : null}
     </Drawer>
   );

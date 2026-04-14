@@ -355,13 +355,14 @@ export const filingApi = {
       .then((r) => unwrap(r).map((row) => mapTrade(row)));
   },
   getPositions: (
-    params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number },
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
   ): Promise<PagedResult<Position>> => {
     const query = new URLSearchParams();
     if (params?.accountId) query.set("accountId", params.accountId);
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();
@@ -371,13 +372,14 @@ export const filingApi = {
     });
   },
   getCashTransactions: (
-    params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number },
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
   ): Promise<PagedResult<CashTransaction>> => {
     const query = new URLSearchParams();
     if (params?.accountId) query.set("accountId", params.accountId);
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();
@@ -387,13 +389,14 @@ export const filingApi = {
     });
   },
   getCashBalances: (
-    params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number },
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
   ): Promise<PagedResult<CashBalance>> => {
     const query = new URLSearchParams();
     if (params?.accountId) query.set("accountId", params.accountId);
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();
@@ -403,13 +406,14 @@ export const filingApi = {
     });
   },
   getPrices: (
-    params?: { securityId?: string; from?: string; to?: string; limit?: number; offset?: number },
+    params?: { securityId?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
   ): Promise<PagedResult<Price>> => {
     const query = new URLSearchParams();
     if (params?.securityId) query.set("securityId", params.securityId);
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();
@@ -419,7 +423,7 @@ export const filingApi = {
     });
   },
   getFxRates: (
-    params?: { base?: string; quote?: string; from?: string; to?: string; limit?: number; offset?: number },
+    params?: { base?: string; quote?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
   ): Promise<PagedResult<FxRate>> => {
     const query = new URLSearchParams();
@@ -427,6 +431,7 @@ export const filingApi = {
     if (params?.quote) query.set("quote", params.quote);
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();
@@ -436,7 +441,7 @@ export const filingApi = {
     });
   },
   getCorporateActions: (
-    params?: { accountId?: string; securityId?: string; from?: string; to?: string; limit?: number; offset?: number },
+    params?: { accountId?: string; securityId?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
   ): Promise<PagedResult<CorporateAction>> => {
     const query = new URLSearchParams();
@@ -444,6 +449,7 @@ export const filingApi = {
     if (params?.securityId) query.set("securityId", params.securityId);
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();
@@ -451,6 +457,81 @@ export const filingApi = {
       const u = unwrapPaged(r);
       return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapCorporateAction(row)) };
     });
+  },
+
+  getPositionBatches: (params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/position-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getCashTransactionBatches: (params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/cash-transaction-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getCashBalanceBatches: (params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/cash-balance-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getFxRateBatches: (params?: { base?: string; quote?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.base) query.set("base", params.base);
+    if (params?.quote) query.set("quote", params.quote);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/fx-rate-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getCorporateActionBatches: (params?: { accountId?: string; securityId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.securityId) query.set("securityId", params.securityId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/corporate-action-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getPriceBatches: (params?: { securityId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.securityId) query.set("securityId", params.securityId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/price-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
   getSecurities: (
     params?: { accountId?: string; limit?: number; offset?: number },
