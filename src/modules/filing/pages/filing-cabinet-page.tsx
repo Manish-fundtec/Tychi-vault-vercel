@@ -279,13 +279,6 @@ export function FilingCabinetPage() {
     }
   };
 
-  const paginate = <T,>(list: T[]) => {
-    const totalPages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-    const safePage = Math.min(page, totalPages);
-    const start = (safePage - 1) * PAGE_SIZE;
-    return { items: list.slice(start, start + PAGE_SIZE), totalPages, safePage };
-  };
-
   const rawFileColumns: DataTableColumn<InboxRawFileSummary>[] = useMemo(
     () => [
       {
@@ -964,20 +957,5 @@ function RawFileRecordsModal({
         />
       ) : null}
     </Drawer>
-  );
-}
-
-function TableContainer({ children, currentPage, totalPages, onPageChange }: { children: React.ReactNode; currentPage: number; totalPages: number; onPageChange: (page: number) => void; }) {
-  return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
-      {children}
-      <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm">
-        <span className="text-muted-foreground">Page {currentPage} of {totalPages}</span>
-        <div className="flex gap-2">
-          <button className="rounded-lg border border-border px-3 py-1.5" disabled={currentPage <= 1} onClick={() => onPageChange(currentPage - 1)}>Prev</button>
-          <button className="rounded-lg border border-border px-3 py-1.5" disabled={currentPage >= totalPages} onClick={() => onPageChange(currentPage + 1)}>Next</button>
-        </div>
-      </div>
-    </div>
   );
 }
