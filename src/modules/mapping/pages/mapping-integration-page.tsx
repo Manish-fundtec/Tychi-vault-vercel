@@ -12,6 +12,9 @@ type MappingKey = string; // sourceField
 // MappingValue is represented by FieldMappingRow (direct or resolver).
 
 type PairKey = "trades" | "securities" | "accounts" | "exchanges" | "assettypes";
+/** Which Tychi table Vault accounts map to (API: `tychi_entity` query param). */
+type AccountsTychiEntity = "broker" | "bank" | "custodian";
+
 type PairTab = {
   id: PairKey;
   title: string;
@@ -26,6 +29,21 @@ const PAIRS: PairTab[] = [
   { id: "exchanges", title: "Exchanges", sourceLabel: "Vault security equities columns", targetLabel: "Tychi exchanges columns" },
   { id: "assettypes", title: "Asset types", sourceLabel: "Vault securities columns", targetLabel: "Tychi asset types columns" }
 ];
+
+function accountsTargetLabel(entity: AccountsTychiEntity): string {
+  if (entity === "broker") return "Tychi brokers columns";
+  if (entity === "bank") return "Tychi bank columns";
+  return "Tychi custodian columns";
+}
+
+function mappingLoadKey(pairId: PairKey, accountsEntity: AccountsTychiEntity): string {
+  return pairId === "accounts" ? `accounts:${accountsEntity}` : pairId;
+}
+
+/** Query string for accounts ↔ Tychi entity variant (empty for other pairs). */
+function accountsEntitySearchParams(accountsEntity: AccountsTychiEntity): string {
+  return `tychi_entity=${encodeURIComponent(accountsEntity)}`;
+}
 
 function lockedTargetFieldsForPair(pairId: PairKey): Set<string> {
   // Guardrails: these fields are computed/controlled by backend and should not be mapped from Vault columns.
@@ -207,7 +225,12 @@ function matchesPairKey(p: unknown, pairKey: PairKey): boolean {
   const tt = String(x.target_table ?? x.targetTable ?? "");
   if (pairKey === "trades") return st.includes("vault_trades") && tt.includes("trade_buffer");
   if (pairKey === "securities") return st.includes("vault_securities") && tt.includes("symbols");
-  if (pairKey === "accounts") return st.includes("vault_accounts") && tt.includes("brokers");
+  if (pairKey === "accounts") {
+    return (
+      st.includes("vault_accounts") &&
+      (tt.includes("brokers") || tt.includes("bank") || tt.includes("custodian"))
+    );
+  }
   if (pairKey === "exchanges") return st.includes("vault_security_equities") && tt.includes("exchanges");
   if (pairKey === "assettypes") return st.includes("vault_securities") && tt.includes("assettype");
   return false;
@@ -249,11 +272,17 @@ function extractPairFromList(data: unknown, pairKey: PairKey): { pair: MappingPa
   return empty;
 }
 
-async function fetchMappingPairFallback(pairId: PairKey, signal: AbortSignal): Promise<MappingPairResponse> {
+async function fetchMappingPairFallback(
+  pairId: PairKey,
+  signal: AbortSignal,
+  accountsEntity: AccountsTychiEntity
+): Promise<MappingPairResponse> {
   const qs = new URLSearchParams({ pair: pairId });
+  if (pairId === "accounts") qs.set("tychi_entity", accountsEntity);
+  const listQs = pairId === "accounts" ? `?${qs.toString()}` : "";
   const [metaRaw, listRaw] = await Promise.all([
     apiClient.get<Record<string, unknown>>(`/integration/mapping/field-metadata?${qs}`, signal),
-    apiClient.get<Record<string, unknown>>(`/integration/mapping`, signal)
+    apiClient.get<Record<string, unknown>>(`/integration/mapping${listQs}`, signal)
   ]);
 
   const metaNorm = normalizeMappingPairBody(metaRaw);
@@ -270,10 +299,15 @@ async function fetchMappingPairFallback(pairId: PairKey, signal: AbortSignal): P
   };
 }
 
-async function loadMappingPair(pairId: PairKey, signal: AbortSignal): Promise<MappingPairResponse> {
+async function loadMappingPair(
+  pairId: PairKey,
+  signal: AbortSignal,
+  accountsEntity: AccountsTychiEntity
+): Promise<MappingPairResponse> {
   let primary: MappingPairResponse | null = null;
+  const pairQs = pairId === "accounts" ? `?${accountsEntitySearchParams(accountsEntity)}` : "";
   try {
-    const res = await apiClient.get<MappingPairResponse>(`/integration/mapping/${pairId}`, signal);
+    const res = await apiClient.get<MappingPairResponse>(`/integration/mapping/${pairId}${pairQs}`, signal);
     if (res != null) primary = normalizeMappingPairBody(res);
   } catch (e) {
     if (!(e instanceof ApiError) || (e.status !== 404 && e.status !== 405)) {
@@ -290,7 +324,7 @@ async function loadMappingPair(pairId: PairKey, signal: AbortSignal): Promise<Ma
   }
 
   try {
-    const fallbackRaw = await fetchMappingPairFallback(pairId, signal);
+    const fallbackRaw = await fetchMappingPairFallback(pairId, signal, accountsEntity);
     const fallback = normalizeMappingPairBody(fallbackRaw);
     if (primary) return mergeMappingPairResponses(primary, fallback);
     return fallback;
@@ -311,7 +345,12 @@ function isAbortError(e: unknown): boolean {
 
 export function MappingIntegrationPage() {
   const [pairId, setPairId] = useState<PairKey>("trades");
-  const pairTab = useMemo(() => PAIRS.find((p) => p.id === pairId)!, [pairId]);
+  const [accountsEntity, setAccountsEntity] = useState<AccountsTychiEntity>("broker");
+  const pairTab = useMemo(() => {
+    const p = PAIRS.find((x) => x.id === pairId)!;
+    if (pairId === "accounts") return { ...p, targetLabel: accountsTargetLabel(accountsEntity) };
+    return p;
+  }, [pairId, accountsEntity]);
   const lockedTargets = useMemo(() => lockedTargetFieldsForPair(pairId), [pairId]);
   const resolverTargets = useMemo(() => resolverTargetsForPair(pairId), [pairId]);
   const hardLockedTargets = useMemo(() => {
@@ -329,7 +368,8 @@ export function MappingIntegrationPage() {
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [uiWarn, setUiWarn] = useState<string | null>(null);
-  const loadedPairsRef = useRef(new Set<PairKey>());
+  const loadedPairsRef = useRef(new Set<string>());
+  const prevAccountsEntityRef = useRef<AccountsTychiEntity>(accountsEntity);
 
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
@@ -357,11 +397,15 @@ export function MappingIntegrationPage() {
   useEffect(() => {
     let stale = false;
     const controller = new AbortController();
+    const loadKey = mappingLoadKey(pairId, accountsEntity);
     setLoading(true);
     setError(null);
     setSaveError(null);
+    setSelectedSource(null);
+    setSelectedTarget(null);
+    setEditingSource(null);
 
-    loadMappingPair(pairId, controller.signal)
+    loadMappingPair(pairId, controller.signal, accountsEntity)
       .then((res) => {
         if (stale) return;
         const r = (res ?? {}) as MappingPairResponse;
@@ -379,20 +423,24 @@ export function MappingIntegrationPage() {
 
         const saved = normalizeFieldMappings(r.fieldMappings);
 
+        const accountsEntityChanged =
+          pairId === "accounts" && prevAccountsEntityRef.current !== accountsEntity;
+        if (pairId === "accounts") prevAccountsEntityRef.current = accountsEntity;
+
+        const seeded: Record<string, FieldMappingRow> = {};
+        for (const [sf, tf] of Object.entries(sugg)) seeded[sf] = { source_field: sf, target_field: tf, mapping_type: "DIRECT" };
+        const merged = { ...seeded, ...saved };
+
         // First time you open a pair: start with suggested mappings, then apply saved mappings over them.
-        // Subsequent opens: keep user's current local edits for that pair.
-        if (!loadedPairsRef.current.has(pairId)) {
-          const seeded: Record<string, FieldMappingRow> = {};
-          for (const [sf, tf] of Object.entries(sugg)) seeded[sf] = { source_field: sf, target_field: tf, mapping_type: "DIRECT" };
-          setMappings({ ...seeded, ...saved });
-          loadedPairsRef.current.add(pairId);
+        // When switching Bank / Broker / Custodian under Accounts, always apply the loaded row for that entity.
+        // Subsequent opens of the same pair (same entity): keep local edits until you save or clear.
+        if (!loadedPairsRef.current.has(loadKey) || accountsEntityChanged) {
+          setMappings(merged);
+          loadedPairsRef.current.add(loadKey);
         } else {
-          // Still refresh saved mappings if the user hasn't edited anything yet.
           setMappings((prev) => {
             if (Object.keys(prev).length !== 0) return prev;
-            const seeded: Record<string, FieldMappingRow> = {};
-            for (const [sf, tf] of Object.entries(sugg)) seeded[sf] = { source_field: sf, target_field: tf, mapping_type: "DIRECT" };
-            return { ...seeded, ...saved };
+            return merged;
           });
         }
 
@@ -421,7 +469,7 @@ export function MappingIntegrationPage() {
       stale = true;
       controller.abort();
     };
-  }, [pairId]);
+  }, [pairId, accountsEntity]);
 
   const link = () => {
     if (!selectedSource || !selectedTarget) return;
@@ -488,8 +536,9 @@ export function MappingIntegrationPage() {
         unique_source_key: uniqueSourceKey.trim() ? uniqueSourceKey.trim() : undefined,
         unique_target_key: uniqueTargetKey.trim() ? uniqueTargetKey.trim() : undefined
       };
+      const fieldsQs = pairId === "accounts" ? `?${accountsEntitySearchParams(accountsEntity)}` : "";
       await apiClient.put(
-        `/integration/mapping/${pairId}/fields`,
+        `/integration/mapping/${pairId}/fields${fieldsQs}`,
         JSON.stringify(payload),
         { "Content-Type": "application/json" }
       );
@@ -548,6 +597,30 @@ export function MappingIntegrationPage() {
         {uiWarn ? (
           <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {uiWarn}
+          </div>
+        ) : null}
+
+        {pairId === "accounts" ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">Tychi target</span>
+            <select
+              className="h-9 min-w-[180px] rounded-xl border border-border bg-background px-3 text-sm"
+              value={accountsEntity}
+              onChange={(e) => {
+                const next = e.target.value as AccountsTychiEntity;
+                setAccountsEntity(next);
+                setSelectedSource(null);
+                setSelectedTarget(null);
+                setEditingSource(null);
+              }}
+            >
+              <option value="broker">Broker</option>
+              <option value="bank">Bank</option>
+              <option value="custodian">Custodian</option>
+            </select>
+            <span className="text-xs text-muted-foreground">
+              Vault accounts columns map to the selected Tychi table; save separately per target.
+            </span>
           </div>
         ) : null}
 
