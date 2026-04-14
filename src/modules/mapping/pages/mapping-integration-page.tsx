@@ -600,33 +600,44 @@ export function MappingIntegrationPage() {
           </div>
         ) : null}
 
-        {pairId === "accounts" ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-muted-foreground">Tychi target</span>
-            <select
-              className="h-9 min-w-[180px] rounded-xl border border-border bg-background px-3 text-sm"
-              value={accountsEntity}
-              onChange={(e) => {
-                const next = e.target.value as AccountsTychiEntity;
-                setAccountsEntity(next);
-                setSelectedSource(null);
-                setSelectedTarget(null);
-                setEditingSource(null);
-              }}
-            >
-              <option value="broker">Broker</option>
-              <option value="bank">Bank</option>
-              <option value="custodian">Custodian</option>
-            </select>
-            <span className="text-xs text-muted-foreground">
-              Vault accounts columns map to the selected Tychi table; save separately per target.
-            </span>
-          </div>
-        ) : null}
-
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Card className="p-4">
-            <div className="text-sm font-semibold">Unique keys</div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-sm font-semibold">Unique keys</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Set optional unique identifiers for deduplication.
+                </div>
+              </div>
+
+              {pairId === "accounts" ? (
+                <div className="w-full sm:w-auto">
+                  <div className="mb-1 text-xs text-muted-foreground">Tychi target</div>
+                  <select
+                    className={cn(
+                      "h-9 w-full min-w-[220px] rounded-xl border border-border bg-background px-3 text-sm",
+                      "shadow-sm",
+                      "focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-background"
+                    )}
+                    value={accountsEntity}
+                    onChange={(e) => {
+                      const next = e.target.value as AccountsTychiEntity;
+                      setAccountsEntity(next);
+                      setSelectedSource(null);
+                      setSelectedTarget(null);
+                      setEditingSource(null);
+                    }}
+                  >
+                    <option value="broker">Broker</option>
+                    <option value="bank">Bank</option>
+                    <option value="custodian">Custodian</option>
+                  </select>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Save is separate per target.
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <div className="mb-1 text-xs text-muted-foreground">Unique source key</div>
