@@ -26,6 +26,8 @@ import type {
   Trade
 } from "../types/filing";
 
+const PAGE_SIZE = 10;
+
 const TRADE_COLUMNS: DataTableColumn<Trade>[] = [
   { id: "tradeDate", header: "Trade Date", sortValue: (r) => new Date(r.tradeDate).getTime(), cell: (r) => formatDate(r.tradeDate) },
   { id: "security", header: "Security", sortValue: (r) => r.security ?? "", cell: (r) => <span className="font-medium">{r.security}</span> },
@@ -114,6 +116,7 @@ export function FilingCabinetPage() {
   const [globalSecurityId, setGlobalSecurityId] = useState("");
   const [fxBase, setFxBase] = useState("");
   const [fxQuote, setFxQuote] = useState("");
+  const [page, setPage] = useState(1);
   const [tab, setTab] = useState("trades");
   const {
     trades,
@@ -434,6 +437,7 @@ export function FilingCabinetPage() {
           value={tab}
           onValueChange={(v) => {
             setTab(v);
+            setPage(1);
           }}
         >
           <TabsList>
