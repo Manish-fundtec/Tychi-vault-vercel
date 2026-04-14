@@ -601,16 +601,16 @@ export function MappingIntegrationPage() {
         ) : null}
 
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <Card className="p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="text-sm font-semibold">Unique keys</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Set optional unique identifiers for deduplication.
+          {pairId === "accounts" ? (
+            <Card className="p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold">Accounts target</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Choose which Tychi table `vault_accounts` should map to.
+                  </div>
                 </div>
-              </div>
 
-              {pairId === "accounts" ? (
                 <div className="w-full sm:w-auto">
                   <div className="mb-1 text-xs text-muted-foreground">Tychi target</div>
                   <select
@@ -636,7 +636,14 @@ export function MappingIntegrationPage() {
                     Save is separate per target.
                   </div>
                 </div>
-              ) : null}
+              </div>
+            </Card>
+          ) : null}
+
+          <Card className="p-4">
+            <div className="text-sm font-semibold">Unique keys</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Set optional unique identifiers for deduplication.
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
