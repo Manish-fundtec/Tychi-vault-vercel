@@ -331,13 +331,14 @@ function mapSecurityOption(raw: Record<string, unknown>): SecurityOptionRow {
 
 export const filingApi = {
   getTrades: (
-    params?: { from?: string; to?: string; accountId?: string; limit?: number; offset?: number },
+    params?: { from?: string; to?: string; accountId?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
   ) => {
     const query = new URLSearchParams();
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
     if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();

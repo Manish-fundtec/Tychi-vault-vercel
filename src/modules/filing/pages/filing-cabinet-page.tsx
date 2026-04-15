@@ -238,6 +238,11 @@ export function FilingCabinetPage() {
   }, [fromDate, toDate, positionBatches, cashTransactionBatches, cashBalanceBatches, priceBatches, fxRateBatches, corporateActionBatches]);
 
   const openRawFile = async (kind: RawKind, file: InboxRawFileSummary) => {
+    // Ensure only one viewer modal is open at a time.
+    rawTradesAbortRef.current?.abort();
+    rawTradesAbortRef.current = null;
+    setRawTradesOpen(false);
+
     setRawKind(kind);
     setRawFile(file);
     setRawOpen(true);
@@ -274,6 +279,45 @@ export function FilingCabinetPage() {
     } finally {
       setRawLoading(false);
     }
+  };
+
+  const openTradesFile = async (file: InboxRawFileSummary) => {
+    // Ensure only one viewer modal is open at a time.
+    rawAbortRef.current?.abort();
+    rawAbortRef.current = null;
+    setRawOpen(false);
+
+    setRawTradesFile(file);
+    setRawTradesOpen(true);
+    setRawTrades([]);
+    setRawTradesError(null);
+    setRawTradesLoading(true);
+
+    rawTradesAbortRef.current?.abort();
+    const controller = new AbortController();
+    rawTradesAbortRef.current = controller;
+
+    try {
+      const next = await filingApi.getTrades(
+        { accountId: accountId.trim() || undefined, from: fromDate || undefined, to: toDate || undefined, rawFileId: file.rawFileId, limit: 200, offset: 0 },
+        controller.signal
+      );
+      setRawTrades(next);
+    } catch {
+      setRawTradesError("Unable to load trades for this file.");
+    } finally {
+      setRawTradesLoading(false);
+    }
+  };
+
+  const kindForTab = (t: string): RawKind | null => {
+    if (t === "positions") return "positions";
+    if (t === "cash") return "cash";
+    if (t === "cashBalances") return "cashBalances";
+    if (t === "prices") return "prices";
+    if (t === "fxRates") return "fxRates";
+    if (t === "corporateActions") return "corporateActions";
+    return null;
   };
 
   const rawFileColumns: DataTableColumn<InboxRawFileSummary>[] = useMemo(
@@ -374,26 +418,12 @@ export function FilingCabinetPage() {
             variant="outline"
             onClick={(e) => {
               e.stopPropagation();
-              void (async () => {
-                setRawTradesFile(row);
-                setRawTradesOpen(true);
-                setRawTrades([]);
-                setRawTradesError(null);
-                setRawTradesLoading(true);
-
-                rawTradesAbortRef.current?.abort();
-                const controller = new AbortController();
-                rawTradesAbortRef.current = controller;
-
-                try {
-                  const next = await filingApi.getTradesForRawFile(row.rawFileId, { limit: 100, offset: 0 }, controller.signal);
-                  setRawTrades(next);
-                } catch {
-                  setRawTradesError("Unable to load trades for this file.");
-                } finally {
-                  setRawTradesLoading(false);
-                }
-              })();
+              if (tab === "trades") {
+                void openTradesFile(row);
+                return;
+              }
+              const k = kindForTab(tab);
+              if (k) void openRawFile(k, row);
             }}
           >
             View
@@ -401,7 +431,7 @@ export function FilingCabinetPage() {
         )
       }
     ],
-    []
+    [openRawFile, openTradesFile, tab]
   );
 
   return (
@@ -457,24 +487,7 @@ export function FilingCabinetPage() {
                 columns={rawFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={async (row) => {
-                  setRawTradesFile(row);
-                  setRawTradesOpen(true);
-                  setRawTrades([]);
-                  setRawTradesError(null);
-                  setRawTradesLoading(true);
-
-                  rawTradesAbortRef.current?.abort();
-                  const controller = new AbortController();
-                  rawTradesAbortRef.current = controller;
-
-                  try {
-                    const next = await filingApi.getTradesForRawFile(row.rawFileId, { limit: 100, offset: 0 }, controller.signal);
-                    setRawTrades(next);
-                  } catch {
-                    setRawTradesError("Unable to load trades for this file.");
-                  } finally {
-                    setRawTradesLoading(false);
-                  }
+                  await openTradesFile(row);
                 }}
                 emptyTitle="No inbox files returned"
                 emptyDescription="Try adjusting the date range."
