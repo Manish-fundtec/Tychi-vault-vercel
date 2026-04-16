@@ -320,7 +320,7 @@ export function FilingCabinetPage() {
     return null;
   };
 
-  const rawFileColumns: DataTableColumn<InboxRawFileSummary>[] = useMemo(
+  const tradeFileColumns: DataTableColumn<InboxRawFileSummary>[] = useMemo(
     () => [
       {
         id: "account",
@@ -344,26 +344,33 @@ export function FilingCabinetPage() {
         filterValue: (r) => r.ingestionChannel ?? ""
       },
       {
+        id: "source",
+        header: "Source",
+        sortValue: (r) => r.source ?? "",
+        cell: (r) => (r.source ? <Badge className="bg-sky-100 text-sky-800">{r.source}</Badge> : "-"),
+        filterValue: (r) => r.source ?? ""
+      },
+      {
         id: "status",
         header: "Status",
-        sortValue: (r) => r.status ?? "",
+        sortValue: (r) => r.rawFileStatus ?? r.status ?? "",
         cell: (r) =>
-          r.status ? (
+          (r.rawFileStatus ?? r.status) ? (
             <Badge
               className={
-                r.status === "PROCESSED"
+                (r.rawFileStatus ?? r.status) === "PROCESSED"
                   ? "bg-emerald-100 text-emerald-800"
-                  : r.status === "FAILED"
+                  : (r.rawFileStatus ?? r.status) === "FAILED"
                     ? "bg-red-100 text-red-800"
                     : "bg-slate-100 text-slate-800"
               }
             >
-              {r.status}
+              {r.rawFileStatus ?? r.status}
             </Badge>
           ) : (
             "-"
           ),
-        filterValue: (r) => r.status ?? ""
+        filterValue: (r) => r.rawFileStatus ?? r.status ?? ""
       },
       {
         id: "recordCount",
@@ -433,6 +440,122 @@ export function FilingCabinetPage() {
     [openRawFile, openTradesFile, tab]
   );
 
+  const batchFileColumns: DataTableColumn<InboxRawFileSummary>[] = useMemo(
+    () => [
+      {
+        id: "account",
+        header: "Account",
+        sortValue: (r) => r.accountName ?? r.accountId ?? "",
+        cell: (r) => <span className="font-medium">{r.accountName ?? r.accountId ?? "-"}</span>,
+        filterValue: (r) => `${r.accountName ?? ""} ${r.accountId ?? ""}`
+      },
+      {
+        id: "sourceSystem",
+        header: "Source System",
+        sortValue: (r) => r.sourceSystem ?? "",
+        cell: (r) => (r.sourceSystem ? <Badge className="bg-violet-100 text-violet-800">{r.sourceSystem}</Badge> : "-"),
+        filterValue: (r) => r.sourceSystem ?? ""
+      },
+      {
+        id: "channel",
+        header: "Channel",
+        sortValue: (r) => r.ingestionChannel ?? "",
+        cell: (r) => (r.ingestionChannel ? <Badge className="bg-indigo-100 text-indigo-800">{r.ingestionChannel}</Badge> : "-"),
+        filterValue: (r) => r.ingestionChannel ?? ""
+      },
+      {
+        id: "fileSource",
+        header: "File Source",
+        sortValue: (r) => r.fileSource ?? "",
+        cell: (r) => (r.fileSource ? <Badge className="bg-slate-100 text-slate-800">{r.fileSource}</Badge> : "-"),
+        filterValue: (r) => r.fileSource ?? ""
+      },
+      {
+        id: "status",
+        header: "Status",
+        sortValue: (r) => r.rawFileStatus ?? r.status ?? "",
+        cell: (r) =>
+          (r.rawFileStatus ?? r.status) ? (
+            <Badge
+              className={
+                (r.rawFileStatus ?? r.status) === "PROCESSED"
+                  ? "bg-emerald-100 text-emerald-800"
+                  : (r.rawFileStatus ?? r.status) === "FAILED"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-slate-100 text-slate-800"
+              }
+            >
+              {r.rawFileStatus ?? r.status}
+            </Badge>
+          ) : (
+            "-"
+          ),
+        filterValue: (r) => r.rawFileStatus ?? r.status ?? ""
+      },
+      {
+        id: "recordCount",
+        header: "Records",
+        align: "right",
+        sortValue: (r) => r.recordCount,
+        cell: (r) => <span className="tabular-nums">{formatNumber(r.recordCount)}</span>
+      },
+      {
+        id: "recordTypes",
+        header: "Types",
+        sortValue: (r) => r.recordTypes.join(","),
+        cell: (r) =>
+          r.recordTypes.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {r.recordTypes.map((t) => (
+                <Badge
+                  key={t}
+                  className={
+                    t === "TRADE"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : t === "POSITION"
+                        ? "bg-violet-100 text-violet-800"
+                        : t === "CASH_TRANSACTION"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-slate-100 text-slate-800"
+                  }
+                >
+                  {t}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            "-"
+          ),
+        filterValue: (r) => r.recordTypes.join(" ")
+      },
+      {
+        id: "effectiveDate",
+        header: "Effective Date",
+        sortValue: (r) => (r.toDate ? new Date(r.toDate).getTime() : 0),
+        cell: (r) => (r.toDate ? formatDate(r.toDate) : "-")
+      },
+      {
+        id: "actions",
+        header: "",
+        align: "right",
+        cell: (row) => (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              const k = kindForTab(tab);
+              if (k) void openRawFile(k, row);
+            }}
+          >
+            View
+          </Button>
+        )
+      }
+    ],
+    [kindForTab, openRawFile, tab]
+  );
+
   return (
     <Page>
       <PageHeader title="Filing Cabinet" description="Explore normalized trades, positions, and cash transactions." />
@@ -483,7 +606,7 @@ export function FilingCabinetPage() {
             >
               <DataTable
                 data={dateFiltered.inboxRawFiles}
-                columns={rawFileColumns}
+                columns={tradeFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={async (row) => {
                   await openTradesFile(row);
@@ -498,7 +621,7 @@ export function FilingCabinetPage() {
             <Section title="Position batches" description="One row per raw file. Click a row to view only that file's positions.">
               <DataTable
                 data={batchFiltered.positions}
-                columns={rawFileColumns}
+                columns={batchFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("positions", row)}
                 emptyTitle="No position batches"
@@ -511,7 +634,7 @@ export function FilingCabinetPage() {
             <Section title="Cash transaction batches" description="One row per raw file. Click a row to view only that file's cash transactions.">
               <DataTable
                 data={batchFiltered.cash}
-                columns={rawFileColumns}
+                columns={batchFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("cash", row)}
                 emptyTitle="No cash transaction batches"
@@ -524,7 +647,7 @@ export function FilingCabinetPage() {
             <Section title="Cash balance batches" description="One row per raw file. Click a row to view only that file's cash balances.">
               <DataTable
                 data={batchFiltered.cashBalances}
-                columns={rawFileColumns}
+                columns={batchFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("cashBalances", row)}
                 emptyTitle="No cash balance batches"
@@ -537,7 +660,7 @@ export function FilingCabinetPage() {
             <Section title="Price batches" description="One row per raw file. Click a row to view only that file's prices.">
               <DataTable
                 data={batchFiltered.prices}
-                columns={rawFileColumns}
+                columns={batchFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("prices", row)}
                 emptyTitle="No price batches"
@@ -555,7 +678,7 @@ export function FilingCabinetPage() {
             <Section title="FX rate batches" description="One row per raw file. Click a row to view only that file's FX rates.">
               <DataTable
                 data={batchFiltered.fxRates}
-                columns={rawFileColumns}
+                columns={batchFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("fxRates", row)}
                 emptyTitle="No FX rate batches"
@@ -568,7 +691,7 @@ export function FilingCabinetPage() {
             <Section title="Corporate action batches" description="One row per raw file. Click a row to view only that file's corporate actions.">
               <DataTable
                 data={batchFiltered.corporateActions}
-                columns={rawFileColumns}
+                columns={batchFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("corporateActions", row)}
                 emptyTitle="No corporate action batches"
