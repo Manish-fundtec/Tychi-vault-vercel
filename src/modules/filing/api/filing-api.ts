@@ -203,13 +203,9 @@ function mapInboxFileSummary(raw: Record<string, unknown>): InboxRawFileSummary 
     accountName: (get(raw, "accountName", "account_name") as string | null | undefined) ?? null,
     sourceSystem: (get(raw, "sourceSystem", "source_system") as string | null | undefined) ?? null,
     source: (get(raw, "source", "source") as string | null | undefined) ?? null,
-    fileSource: (get(raw, "fileSource", "file_source") as string | null | undefined) ?? null,
     ingestionChannel: (get(raw, "ingestionChannel", "ingestion_channel") as string | null | undefined) ?? null,
     status: (get(raw, "status", "status") as string | null | undefined) ?? null,
-    rawFileStatus: (get(raw, "rawFileStatus", "raw_file_status") as string | null | undefined) ?? null,
     recordCount: Number(get(raw, "recordCount", "record_count") ?? 0),
-    fromDate: (get(raw, "fromDate", "from_date") as string | null | undefined) ?? null,
-    toDate: (get(raw, "toDate", "to_date") as string | null | undefined) ?? null,
     createdAt: String(get(raw, "createdAt", "created_at") ?? ""),
     fileName: String(get(raw, "fileName", "file_name") ?? ""),
     recordTypes

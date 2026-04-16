@@ -329,13 +329,12 @@ export function FilingCabinetPage() {
         cell: (r) => <span className="font-medium">{r.accountName ?? r.accountId ?? "-"}</span>,
         filterValue: (r) => `${r.accountName ?? ""} ${r.accountId ?? ""}`
       },
-      { id: "sourceSystem", header: "Source System", accessor: (r) => r.sourceSystem ?? "-", sortValue: (r) => r.sourceSystem ?? "" },
       {
-        id: "source",
-        header: "Source",
-        sortValue: (r) => r.source ?? "",
-        cell: (r) => (r.source ? <Badge className="bg-sky-100 text-sky-800">{r.source}</Badge> : "-"),
-        filterValue: (r) => r.source ?? ""
+        id: "sourceSystem",
+        header: "Source System",
+        sortValue: (r) => r.sourceSystem ?? "",
+        cell: (r) => (r.sourceSystem ? <Badge className="bg-violet-100 text-violet-800">{r.sourceSystem}</Badge> : "-"),
+        filterValue: (r) => r.sourceSystem ?? ""
       },
       {
         id: "channel",
@@ -345,33 +344,26 @@ export function FilingCabinetPage() {
         filterValue: (r) => r.ingestionChannel ?? ""
       },
       {
-        id: "fileSource",
-        header: "File Source",
-        sortValue: (r) => r.fileSource ?? "",
-        cell: (r) => (r.fileSource ? <Badge className="bg-slate-100 text-slate-800">{r.fileSource}</Badge> : "-"),
-        filterValue: (r) => r.fileSource ?? ""
-      },
-      {
         id: "status",
         header: "Status",
-        sortValue: (r) => r.rawFileStatus ?? r.status ?? "",
+        sortValue: (r) => r.status ?? "",
         cell: (r) =>
-          (r.rawFileStatus ?? r.status) ? (
+          r.status ? (
             <Badge
               className={
-                (r.rawFileStatus ?? r.status) === "PROCESSED"
+                r.status === "PROCESSED"
                   ? "bg-emerald-100 text-emerald-800"
-                  : (r.rawFileStatus ?? r.status) === "FAILED"
+                  : r.status === "FAILED"
                     ? "bg-red-100 text-red-800"
                     : "bg-slate-100 text-slate-800"
               }
             >
-              {r.rawFileStatus ?? r.status}
+              {r.status}
             </Badge>
           ) : (
             "-"
           ),
-        filterValue: (r) => r.rawFileStatus ?? r.status ?? ""
+        filterValue: (r) => r.status ?? ""
       },
       {
         id: "recordCount",
@@ -410,10 +402,10 @@ export function FilingCabinetPage() {
         filterValue: (r) => r.recordTypes.join(" ")
       },
       {
-        id: "effectiveDate",
-        header: "Effective Date",
-        sortValue: (r) => (r.toDate ? new Date(r.toDate).getTime() : 0),
-        cell: (r) => (r.toDate ? formatDate(r.toDate) : "-")
+        id: "createdAt",
+        header: "Created",
+        sortValue: (r) => (r.createdAt ? new Date(r.createdAt).getTime() : 0),
+        cell: (r) => (r.createdAt ? formatDate(r.createdAt) : "-")
       },
       {
         id: "actions",
