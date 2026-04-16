@@ -54,6 +54,14 @@ function mapInboxFile(raw: Record<string, unknown>): InboxFile {
   const inboxEmail = get("inboxEmail", "inbox_email");
   const s3Uri = get("s3Uri", "s3_uri");
   const errorMessage = get("errorMessage", "error_message");
+  const rawStatus = get("status", "status") as string | undefined;
+  const normalizedErrorMessage = errorMessage != null && errorMessage !== "" ? String(errorMessage) : null;
+  const status =
+    rawStatus === "FAILED" &&
+    normalizedErrorMessage &&
+    normalizedErrorMessage.toUpperCase().includes("FILE_DATA_ALREADY_EXISTS")
+      ? "FILE_ALREADY_EXISTS"
+      : ((rawStatus as InboxFile["status"]) ?? "FAILED");
   return {
     id: String(get("id", "id")),
     fileName: String(get("fileName", "file_name") ?? ""),
@@ -61,11 +69,11 @@ function mapInboxFile(raw: Record<string, unknown>): InboxFile {
     source: get("source", "source") as InboxFile["source"],
     channel: channelRaw as InboxFile["channel"],
     uploadedAt: String(get("uploadedAt", "uploaded_at") ?? ""),
-    status: get("status", "status") as InboxFile["status"],
+    status,
     recordCount: Number(get("recordCount", "record_count") ?? 0),
     s3Uri: (typeof s3Uri === "string" ? s3Uri : null) ?? null,
     inboxEmail: inboxEmail != null && inboxEmail !== "" ? String(inboxEmail) : null,
-    errorMessage: errorMessage != null && errorMessage !== "" ? String(errorMessage) : null
+    errorMessage: normalizedErrorMessage
   };
 }
 

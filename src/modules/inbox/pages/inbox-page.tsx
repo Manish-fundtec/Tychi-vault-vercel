@@ -100,6 +100,7 @@ export function InboxPage() {
                   : e instanceof Error
                     ? e.message
                     : "Upload failed. Check network, CORS, auth, and tenant headers.";
+              await reload();
               setUploadNotice({ variant: "error", text: msg });
             }
           }}

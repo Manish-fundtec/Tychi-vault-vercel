@@ -6,9 +6,10 @@ const statusClassNames: Record<InboxStatus, string> = {
   PROCESSING: "bg-blue-100 text-blue-700",
   PROCESSED: "bg-emerald-100 text-emerald-700",
   FAILED: "bg-red-100 text-red-700",
-  PENDING_CONFIRMATION: "bg-amber-100 text-amber-700"
+  PENDING_CONFIRMATION: "bg-amber-100 text-amber-700",
+  FILE_ALREADY_EXISTS: "bg-orange-100 text-orange-700"
 };
 
 export function InboxStatusBadge({ status }: { status: InboxStatus }) {
-  return <Badge className={statusClassNames[status]}>{status}</Badge>;
+  return <Badge className={statusClassNames[status]}>{status === "FILE_ALREADY_EXISTS" ? "FILE ALREADY EXISTS" : status}</Badge>;
 }

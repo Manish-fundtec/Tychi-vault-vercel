@@ -1,6 +1,12 @@
 export type InboxSource = "IBKR" | "DBS" | "Manual";
 export type InboxChannel = "EMAIL" | "CRON" | "UPLOAD" | "API";
-export type InboxStatus = "RECEIVED" | "PROCESSING" | "PROCESSED" | "FAILED" | "PENDING_CONFIRMATION";
+export type InboxStatus =
+  | "RECEIVED"
+  | "PROCESSING"
+  | "PROCESSED"
+  | "FAILED"
+  | "PENDING_CONFIRMATION"
+  | "FILE_ALREADY_EXISTS";
 
 export interface InboxFile {
   id: string;
