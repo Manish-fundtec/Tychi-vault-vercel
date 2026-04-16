@@ -345,26 +345,33 @@ export function FilingCabinetPage() {
         filterValue: (r) => r.ingestionChannel ?? ""
       },
       {
+        id: "fileSource",
+        header: "File Source",
+        sortValue: (r) => r.fileSource ?? "",
+        cell: (r) => (r.fileSource ? <Badge className="bg-slate-100 text-slate-800">{r.fileSource}</Badge> : "-"),
+        filterValue: (r) => r.fileSource ?? ""
+      },
+      {
         id: "status",
         header: "Status",
-        sortValue: (r) => r.status ?? "",
+        sortValue: (r) => r.rawFileStatus ?? r.status ?? "",
         cell: (r) =>
-          r.status ? (
+          (r.rawFileStatus ?? r.status) ? (
             <Badge
               className={
-                r.status === "PROCESSED"
+                (r.rawFileStatus ?? r.status) === "PROCESSED"
                   ? "bg-emerald-100 text-emerald-800"
-                  : r.status === "FAILED"
+                  : (r.rawFileStatus ?? r.status) === "FAILED"
                     ? "bg-red-100 text-red-800"
                     : "bg-slate-100 text-slate-800"
               }
             >
-              {r.status}
+              {r.rawFileStatus ?? r.status}
             </Badge>
           ) : (
             "-"
           ),
-        filterValue: (r) => r.status ?? ""
+        filterValue: (r) => r.rawFileStatus ?? r.status ?? ""
       },
       {
         id: "recordCount",
@@ -403,10 +410,10 @@ export function FilingCabinetPage() {
         filterValue: (r) => r.recordTypes.join(" ")
       },
       {
-        id: "createdAt",
-        header: "Created",
-        sortValue: (r) => (r.createdAt ? new Date(r.createdAt).getTime() : 0),
-        cell: (r) => (r.createdAt ? formatDate(r.createdAt) : "-")
+        id: "effectiveDate",
+        header: "Effective Date",
+        sortValue: (r) => (r.toDate ? new Date(r.toDate).getTime() : 0),
+        cell: (r) => (r.toDate ? formatDate(r.toDate) : "-")
       },
       {
         id: "actions",

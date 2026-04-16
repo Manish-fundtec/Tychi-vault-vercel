@@ -134,9 +134,13 @@ export interface InboxRawFileSummary {
   accountName?: string | null;
   sourceSystem?: string | null;
   source?: string | null;
+  fileSource?: string | null;
   ingestionChannel?: string | null;
   status?: string | null;
+  rawFileStatus?: string | null;
   recordCount: number;
+  fromDate?: string | null;
+  toDate?: string | null;
   createdAt: string;
   fileName: string;
   recordTypes: string[];
