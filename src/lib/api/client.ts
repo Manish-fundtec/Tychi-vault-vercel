@@ -74,7 +74,9 @@ function resolveDashboardContext(): { dashboardToken: string | null; fundId: str
   const urlFund = getUrlParam("fundId");
 
   // If the app was opened with tokens in URL, persist them for API calls.
-  const dashboardToken = (urlToken ?? storedToken ?? getCookie("dashboardToken") ?? getCookie("dashboard_token")) || null;
+  // Prefer cookie (shared .tychi.co) over localStorage to avoid "sticky" stale tokens.
+  const cookieToken = getCookie("dashboardToken") ?? getCookie("dashboard_token");
+  const dashboardToken = (urlToken ?? cookieToken ?? storedToken) || null;
   if (dashboardToken && dashboardToken !== storedToken) {
     try {
       localStorage.setItem("dashboardToken", dashboardToken);
@@ -83,12 +85,16 @@ function resolveDashboardContext(): { dashboardToken: string | null; fundId: str
     }
   }
 
-  // Prefer explicit fundId param; else decode from dashboardToken; else use stored.
-  let fundId = (urlFund ?? storedFund) || null;
-  if (!fundId && dashboardToken) {
+  // Source of truth: fund_id inside dashboardToken. Only fall back to explicit URL param or storage
+  // when there is no token available.
+  let fundId: string | null = null;
+  if (dashboardToken) {
     const p = parseJwtPayload(dashboardToken);
     const v = p && p["fund_id"];
     if (typeof v === "string" && v.trim()) fundId = v.trim();
+  }
+  if (!fundId) {
+    fundId = (urlFund ?? storedFund) || null;
   }
 
   if (fundId && fundId !== storedFund) {
@@ -110,6 +116,8 @@ export async function vaultAuthorizedFetch(path: string, init?: RequestInit): Pr
   const url = `${BASE_URL}${path}`;
   return fetch(url, {
     ...init,
+    // IMPORTANT: allow browser to send cookies (dashboardToken on .tychi.co)
+    credentials: "include",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(tenantId ? { "x-tenant-id": tenantId } : {}),
@@ -206,6 +214,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     method: options.method ?? "GET",
     body: options.body,
     signal: options.signal,
+    // IMPORTANT: allow browser to send cookies (dashboardToken on .tychi.co)
+    credentials: "include",
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(tenantId ? { "x-tenant-id": tenantId } : {}),
