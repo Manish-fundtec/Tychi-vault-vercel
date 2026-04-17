@@ -1,8 +1,15 @@
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/vault/:path*",
-      "destination": "http://23.22.29.154:3000/api/vault/:path*"
+      "src": "/api/vault/(.*)",
+      "dest": "http://23.22.29.154:3000/api/vault/$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
