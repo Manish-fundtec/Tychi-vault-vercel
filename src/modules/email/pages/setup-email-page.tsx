@@ -11,11 +11,45 @@ import { DataTable, type DataTableColumn } from "../../../components/common/data
 import { ApiError } from "../../../lib/api/client";
 import { InboxTable } from "../../inbox/components/inbox-table";
 import { useInboxFiles } from "../../inbox/hooks/use-inbox-files";
-import { createEmailInbox, fetchEmailInboxes, type EmailInboxRow } from "../api/email-inboxes-api";
+import {
+  createEmailInbox,
+  fetchEmailInboxes,
+  updateEmailInbox,
+  type EmailInboxRow
+} from "../api/email-inboxes-api";
 
 type EmailInbox = EmailInboxRow;
 
+function shortenId(id: string | null | undefined, len = 8): string {
+  if (!id) return "—";
+  const s = String(id).trim();
+  if (s.length <= len + 4) return s;
+  return `${s.slice(0, len)}…`;
+}
+
+/** Same source as api client: dashboard JWT → localStorage fundId */
+function resolveFundHint(): string | null {
+  try {
+    const dash = localStorage.getItem("dashboardToken") ?? localStorage.getItem("dashboard_token");
+    if (dash) {
+      const parts = dash.split(".");
+      const payload = parts[1];
+      if (payload) {
+        const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
+        const v = json?.fund_id;
+        if (typeof v === "string" && v.trim()) return v.trim();
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  const raw = localStorage.getItem("fundId") ?? localStorage.getItem("fund_id");
+  return raw?.trim() || null;
+}
+
 export function SetupEmailPage() {
+  const fundHint = useMemo(() => resolveFundHint(), []);
+
   const [inboxes, setInboxes] = useState<EmailInbox[]>([]);
   const [inboxesLoading, setInboxesLoading] = useState(true);
   const [inboxesError, setInboxesError] = useState<string | null>(null);
@@ -32,6 +66,13 @@ export function SetupEmailPage() {
   const [label, setLabel] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState<EmailInbox | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editStatus, setEditStatus] = useState<"ACTIVE" | "PAUSED">("ACTIVE");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const loadInboxes = useCallback(async () => {
     setInboxesLoading(true);
@@ -54,7 +95,22 @@ export function SetupEmailPage() {
 
   const inboxColumns: DataTableColumn<EmailInbox>[] = useMemo(
     () => [
-      { id: "email", header: "Email", sortValue: (r) => r.email, cell: (r) => <span className="font-medium">{r.email}</span> },
+      {
+        id: "email",
+        header: "Sender email",
+        sortValue: (r) => r.email,
+        cell: (r) => <span className="font-medium">{r.email}</span>
+      },
+      {
+        id: "fundId",
+        header: "Fund ID",
+        sortValue: (r) => r.fundId ?? "",
+        cell: (r) => (
+          <span className="font-mono text-xs text-muted-foreground" title={r.fundId ?? ""}>
+            {shortenId(r.fundId, 12)}
+          </span>
+        )
+      },
       { id: "label", header: "Label", sortValue: (r) => r.label, accessor: (r) => r.label },
       {
         id: "status",
@@ -66,7 +122,33 @@ export function SetupEmailPage() {
           </Badge>
         )
       },
-      { id: "createdAt", header: "Created", sortValue: (r) => new Date(r.createdAt).getTime(), cell: (r) => new Date(r.createdAt).toLocaleString() }
+      {
+        id: "createdAt",
+        header: "Created",
+        sortValue: (r) => new Date(r.createdAt).getTime(),
+        cell: (r) => new Date(r.createdAt).toLocaleString()
+      },
+      {
+        id: "actions",
+        header: "",
+        sortValue: () => "",
+        cell: (r) => (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => {
+              setEditing(r);
+              setEditLabel(r.label);
+              setEditStatus(r.status);
+              setEditError(null);
+              setEditOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+        )
+      }
     ],
     []
   );
@@ -75,7 +157,7 @@ export function SetupEmailPage() {
     <Page>
       <PageHeader
         title="Setup Email"
-        description="Configure inboxes and view incoming report files saved to S3."
+        description="Register trusted sender addresses per fund. New rows use the current dashboard fund (x-fund-id)."
         right={
           <Button onClick={() => setAddOpen(true)}>
             Add email
@@ -83,12 +165,20 @@ export function SetupEmailPage() {
         }
       />
 
+      {!fundHint ? (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          No fund in session — open this app from the dashboard or set <code className="rounded bg-amber-100 px-1">fundId</code> / dashboard token so API calls include <strong>x-fund-id</strong>.
+        </p>
+      ) : null}
+
       <Section title="Inboxes">
         {inboxesError ? (
           <p className="text-sm text-destructive">{inboxesError}</p>
         ) : null}
         {inboxesLoading ? (
           <p className="text-sm text-muted-foreground">Loading inboxes…</p>
+        ) : inboxes.length === 0 && !inboxesError ? (
+          <EmptyState title="No inboxes for this fund" description="Add a sender email linked to the current fund." />
         ) : (
           <DataTable data={inboxes} columns={inboxColumns} getRowId={(r) => r.id} initialPageSize={10} />
         )}
@@ -119,7 +209,11 @@ export function SetupEmailPage() {
         placement="center"
         widthClassName="w-[min(680px,calc(100vw-24px))]"
         title="Add email inbox"
-        description="Add an inbox address that will receive reports."
+        description={
+          fundHint
+            ? `Stored under fund ${shortenId(fundHint, 12)} (from your dashboard session).`
+            : "Requires a fund context (dashboard token / x-fund-id)."
+        }
         onClose={() => {
           setAddOpen(false);
           setAddError(null);
@@ -144,7 +238,11 @@ export function SetupEmailPage() {
                 setAddSubmitting(true);
                 setAddError(null);
                 try {
-                  await createEmailInbox({ emailAddress: nextEmail, label: nextLabel });
+                  await createEmailInbox({
+                    emailAddress: nextEmail,
+                    label: nextLabel,
+                    ...(fundHint ? { fundId: fundHint } : {})
+                  });
                   setEmail("");
                   setLabel("");
                   setAddOpen(false);
@@ -165,8 +263,11 @@ export function SetupEmailPage() {
         <div className="grid gap-4">
           {addError ? <p className="text-sm text-destructive">{addError}</p> : null}
           <label className="grid gap-2 text-sm">
-            <span className="font-medium">Email address</span>
-            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="reports+ibkr@tychi.ai" />
+            <span className="font-medium">Sender email (whitelist)</span>
+            <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sender@company.com" />
+            <span className="text-xs text-muted-foreground">
+              Must match the <strong>From</strong> address on inbound mail for routing to this fund.
+            </span>
           </label>
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Label</span>
@@ -174,7 +275,81 @@ export function SetupEmailPage() {
           </label>
         </div>
       </Drawer>
+
+      <Drawer
+        open={editOpen}
+        placement="center"
+        widthClassName="w-[min(680px,calc(100vw-24px))]"
+        title="Edit email inbox"
+        description={editing ? `Sender: ${editing.email}` : undefined}
+        onClose={() => {
+          setEditOpen(false);
+          setEditing(null);
+          setEditError(null);
+        }}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditOpen(false);
+                setEditing(null);
+                setEditError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={editSubmitting || !editing}
+              onClick={async () => {
+                if (!editing) return;
+                setEditSubmitting(true);
+                setEditError(null);
+                try {
+                  await updateEmailInbox(editing.id, {
+                    label: editLabel.trim() || "Inbox",
+                    status: editStatus
+                  });
+                  setEditOpen(false);
+                  setEditing(null);
+                  await loadInboxes();
+                } catch (e) {
+                  const msg = e instanceof ApiError ? e.message : "Could not update inbox";
+                  setEditError(msg);
+                } finally {
+                  setEditSubmitting(false);
+                }
+              }}
+            >
+              {editSubmitting ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        }
+      >
+        <div className="grid gap-4">
+          {editError ? <p className="text-sm text-destructive">{editError}</p> : null}
+          <div className="grid gap-1 text-sm">
+            <span className="font-medium">Fund ID</span>
+            <p className="font-mono text-xs text-muted-foreground break-all">{editing?.fundId ?? "—"}</p>
+            <span className="text-xs text-muted-foreground">Tied to this row at creation; change fund via backend if needed.</span>
+          </div>
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium">Label</span>
+            <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} placeholder="Label" />
+          </label>
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium">Status</span>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value === "PAUSED" ? "PAUSED" : "ACTIVE")}
+            >
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="PAUSED">PAUSED</option>
+            </select>
+          </label>
+        </div>
+      </Drawer>
     </Page>
   );
 }
-

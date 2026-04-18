@@ -128,7 +128,7 @@ export async function vaultAuthorizedFetch(path: string, init?: RequestInit): Pr
   });
 }
 
-type HttpMethod = "GET" | "POST" | "PUT";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH";
 
 interface RequestOptions {
   method?: HttpMethod;
@@ -245,5 +245,7 @@ export const apiClient = {
   post: <T>(path: string, body: BodyInit | null, headers?: HeadersInit, signal?: AbortSignal) =>
     request<T>(path, { method: "POST", body, headers, signal }) as Promise<T | null>,
   put: <T>(path: string, body: BodyInit | null, headers?: HeadersInit, signal?: AbortSignal) =>
-    request<T>(path, { method: "PUT", body, headers, signal }) as Promise<T | null>
+    request<T>(path, { method: "PUT", body, headers, signal }) as Promise<T | null>,
+  patch: <T>(path: string, body: BodyInit | null, headers?: HeadersInit, signal?: AbortSignal) =>
+    request<T>(path, { method: "PATCH", body, headers, signal }) as Promise<T | null>
 };
