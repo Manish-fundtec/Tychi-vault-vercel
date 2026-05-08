@@ -29,6 +29,32 @@ export interface Position {
   updatedAt: string;
 }
 
+export interface Transfer {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  securityId: string;
+  securityName?: string | null;
+  transferDate: string;
+  transferType: string;
+  direction: "IN" | "OUT";
+  quantity: number;
+  currency: string;
+  xferCompany?: string | null;
+  xferAccount?: string | null;
+  xferPrice?: number | null;
+  marketValue?: number | null;
+  realizedPl?: number | null;
+  cashAmount?: number | null;
+  transferCode?: string | null;
+  sourceTransferId: string;
+  status: string;
+  source?: string | null;
+  rawRecordId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CashTransaction {
   id: string;
   tenantId: string;

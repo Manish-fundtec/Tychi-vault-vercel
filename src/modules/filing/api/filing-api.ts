@@ -12,7 +12,8 @@ import type {
   SecurityIdentifierRow,
   SecurityMaster,
   SecurityOptionRow,
-  Trade
+  Trade,
+  Transfer
 } from "../types/filing";
 
 type PagedListResponse = { items: Record<string, unknown>[]; limit?: number; offset?: number };
@@ -70,6 +71,34 @@ function mapPosition(raw: Record<string, unknown>): Position {
     marketValue: Number(get(raw, "marketValue", "market_value") ?? 0),
     unrealisedPnl: Number(get(raw, "unrealisedPnl", "unrealised_pnl") ?? get(raw, "unrealizedPnl", "unrealized_pnl") ?? 0),
     currency: String(get(raw, "currency", "currency") ?? ""),
+    source: (get(raw, "source", "source") as string | null | undefined) ?? null,
+    rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
+    createdAt: String(get(raw, "createdAt", "created_at") ?? ""),
+    updatedAt: String(get(raw, "updatedAt", "updated_at") ?? "")
+  };
+}
+
+function mapTransfer(raw: Record<string, unknown>): Transfer {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    securityId: String(get(raw, "securityId", "security_id") ?? ""),
+    securityName: (get(raw, "securityName", "security_name") as string | null | undefined) ?? null,
+    transferDate: String(get(raw, "transferDate", "transfer_date") ?? ""),
+    transferType: String(get(raw, "transferType", "transfer_type") ?? ""),
+    direction: (get(raw, "direction", "direction") ?? "IN") as Transfer["direction"],
+    quantity: Number(get(raw, "quantity", "quantity") ?? 0),
+    currency: String(get(raw, "currency", "currency") ?? ""),
+    xferCompany: (get(raw, "xferCompany", "xfer_company") as string | null | undefined) ?? null,
+    xferAccount: (get(raw, "xferAccount", "xfer_account") as string | null | undefined) ?? null,
+    xferPrice: (get(raw, "xferPrice", "xfer_price") as number | null | undefined) ?? null,
+    marketValue: (get(raw, "marketValue", "market_value") as number | null | undefined) ?? null,
+    realizedPl: (get(raw, "realizedPl", "realized_pl") as number | null | undefined) ?? null,
+    cashAmount: (get(raw, "cashAmount", "cash_amount") as number | null | undefined) ?? null,
+    transferCode: (get(raw, "transferCode", "transfer_code") as string | null | undefined) ?? null,
+    sourceTransferId: String(get(raw, "sourceTransferId", "source_transfer_id") ?? ""),
+    status: String(get(raw, "status", "status") ?? ""),
     source: (get(raw, "source", "source") as string | null | undefined) ?? null,
     rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
     createdAt: String(get(raw, "createdAt", "created_at") ?? ""),
@@ -376,6 +405,23 @@ export const filingApi = {
       return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapPosition(row)) };
     });
   },
+  getTransfers: (
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<PagedResult<Transfer>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/transfers${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapTransfer(row)) };
+    });
+  },
   getCashTransactions: (
     params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
     signal?: AbortSignal
@@ -474,6 +520,18 @@ export const filingApi = {
     const qs = query.toString();
     return apiClient
       .get<ListResponse>(`/filing-cabinet/position-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getTransferBatches: (params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/transfer-batches${qs ? `?${qs}` : ""}`, signal)
       .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
   getCashTransactionBatches: (params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
