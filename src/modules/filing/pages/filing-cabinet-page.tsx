@@ -23,8 +23,7 @@ import type {
   Price,
   SecurityBatchSummary,
   SecurityMaster,
-  Trade,
-  Transfer
+  Trade
 } from "../types/filing";
 
 const TRADE_COLUMNS: DataTableColumn<Trade>[] = [
@@ -59,49 +58,6 @@ const POSITION_COLUMNS: DataTableColumn<Position>[] = [
     )
   },
   { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" }
-];
-
-const TRANSFER_COLUMNS: DataTableColumn<Transfer>[] = [
-  { id: "transferDate", header: "Date", sortValue: (r) => new Date(r.transferDate).getTime(), cell: (r) => formatDate(r.transferDate) },
-  { id: "security", header: "Security", sortValue: (r) => r.securityName ?? r.securityId, cell: (r) => <span className="font-medium">{r.securityName ?? r.securityId}</span> },
-  {
-    id: "direction",
-    header: "Direction",
-    sortValue: (r) => r.direction,
-    cell: (r) => <Badge className={r.direction === "IN" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}>{r.direction}</Badge>
-  },
-  { id: "quantity", header: "Quantity", align: "right", sortValue: (r) => r.quantity, cell: (r) => <span className="tabular-nums">{formatNumber(r.quantity)}</span> },
-  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" },
-  { id: "transferType", header: "Type", sortValue: (r) => r.transferType ?? "", accessor: (r) => r.transferType ?? "-" },
-  { id: "xferCompany", header: "Xfer Company", sortValue: (r) => r.xferCompany ?? "", accessor: (r) => r.xferCompany ?? "-" },
-  { id: "xferAccount", header: "Xfer Account", sortValue: (r) => r.xferAccount ?? "", accessor: (r) => r.xferAccount ?? "-" },
-  {
-    id: "marketValue",
-    header: "Mkt Value",
-    align: "right",
-    sortValue: (r) => r.marketValue ?? 0,
-    cell: (r) => <span className="tabular-nums">{r.marketValue == null ? "-" : formatNumber(r.marketValue)}</span>
-  },
-  {
-    id: "cashAmount",
-    header: "Cash",
-    align: "right",
-    sortValue: (r) => r.cashAmount ?? 0,
-    cell: (r) => <span className="tabular-nums">{r.cashAmount == null ? "-" : formatNumber(r.cashAmount)}</span>
-  },
-  {
-    id: "realizedPl",
-    header: "Realized P/L",
-    align: "right",
-    sortValue: (r) => r.realizedPl ?? 0,
-    cell: (r) =>
-      r.realizedPl == null ? (
-        "-"
-      ) : (
-        <span className={r.realizedPl >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatNumber(r.realizedPl)}</span>
-      )
-  },
-  { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" }
 ];
 
 const CASH_TXN_COLUMNS: DataTableColumn<CashTransaction>[] = [
@@ -171,7 +127,6 @@ export function FilingCabinetPage() {
     securityBatches,
     inboxRawFiles,
     positionBatches,
-    transferBatches,
     cashTransactionBatches,
     cashBalanceBatches,
     priceBatches,
@@ -196,7 +151,7 @@ export function FilingCabinetPage() {
   const [rawTradesError, setRawTradesError] = useState<string | null>(null);
   const rawTradesAbortRef = useRef<AbortController | null>(null);
 
-  type RawKind = "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
+  type RawKind = "positions" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
   const [rawOpen, setRawOpen] = useState(false);
   const [rawKind, setRawKind] = useState<RawKind>("positions");
   const [rawFile, setRawFile] = useState<InboxRawFileSummary | null>(null);
@@ -274,14 +229,13 @@ export function FilingCabinetPage() {
 
     return {
       positions: positionBatches.filter((r) => inRange(safe(r.createdAt))),
-      transfers: transferBatches.filter((r) => inRange(safe(r.createdAt))),
       cash: cashTransactionBatches.filter((r) => inRange(safe(r.createdAt))),
       cashBalances: cashBalanceBatches.filter((r) => inRange(safe(r.createdAt))),
       prices: priceBatches.filter((r) => inRange(safe(r.createdAt))),
       fxRates: fxRateBatches.filter((r) => inRange(safe(r.createdAt))),
       corporateActions: corporateActionBatches.filter((r) => inRange(safe(r.createdAt)))
     };
-  }, [fromDate, toDate, positionBatches, transferBatches, cashTransactionBatches, cashBalanceBatches, priceBatches, fxRateBatches, corporateActionBatches]);
+  }, [fromDate, toDate, positionBatches, cashTransactionBatches, cashBalanceBatches, priceBatches, fxRateBatches, corporateActionBatches]);
 
   const openRawFile = async (kind: RawKind, file: InboxRawFileSummary) => {
     // Ensure only one viewer modal is open at a time.
@@ -303,9 +257,6 @@ export function FilingCabinetPage() {
     try {
       if (kind === "positions") {
         const res = await filingApi.getPositions({ accountId: accountId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
-        setRawRows(res.items);
-      } else if (kind === "transfers") {
-        const res = await filingApi.getTransfers({ accountId: accountId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
         setRawRows(res.items);
       } else if (kind === "cash") {
         const res = await filingApi.getCashTransactions({ accountId: accountId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
@@ -361,7 +312,6 @@ export function FilingCabinetPage() {
 
   const kindForTab = (t: string): RawKind | null => {
     if (t === "positions") return "positions";
-    if (t === "transfers") return "transfers";
     if (t === "cash") return "cash";
     if (t === "cashBalances") return "cashBalances";
     if (t === "prices") return "prices";
@@ -642,7 +592,6 @@ export function FilingCabinetPage() {
             <TabsTrigger value="trades">Trades</TabsTrigger>
             <TabsTrigger value="securities">Securities</TabsTrigger>
             <TabsTrigger value="positions">Positions</TabsTrigger>
-            <TabsTrigger value="transfers">Transfers</TabsTrigger>
             <TabsTrigger value="cash">Cash Txns</TabsTrigger>
             <TabsTrigger value="cashBalances">Cash Balances</TabsTrigger>
             <TabsTrigger value="prices">Prices</TabsTrigger>
@@ -676,19 +625,6 @@ export function FilingCabinetPage() {
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("positions", row)}
                 emptyTitle="No position batches"
-                emptyDescription="Try adjusting the date range."
-              />
-            </Section>
-          </TabsContent>
-
-          <TabsContent value="transfers">
-            <Section title="Transfer batches" description="One row per raw file. Click a row to view only that file's transfers.">
-              <DataTable
-                data={batchFiltered.transfers}
-                columns={batchFileColumns}
-                getRowId={(r) => r.rawFileId}
-                onRowClick={(row) => void openRawFile("transfers", row)}
-                emptyTitle="No transfer batches"
                 emptyDescription="Try adjusting the date range."
               />
             </Section>
@@ -1088,7 +1024,7 @@ function RawFileRecordsModal({
   onClose
 }: {
   open: boolean;
-  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
+  kind: "positions" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
   file: InboxRawFileSummary | null;
   loading: boolean;
   error: string | null;
@@ -1100,8 +1036,6 @@ function RawFileRecordsModal({
   const title =
     kind === "positions"
       ? "Positions"
-      : kind === "transfers"
-        ? "Transfers"
       : kind === "cash"
         ? "Cash transactions"
         : kind === "cashBalances"
@@ -1115,8 +1049,6 @@ function RawFileRecordsModal({
   const columns =
     kind === "positions"
       ? (POSITION_COLUMNS as DataTableColumn<unknown>[])
-      : kind === "transfers"
-        ? (TRANSFER_COLUMNS as DataTableColumn<unknown>[])
       : kind === "cash"
         ? (CASH_TXN_COLUMNS as DataTableColumn<unknown>[])
         : kind === "cashBalances"
