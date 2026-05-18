@@ -2,6 +2,7 @@ import { apiClient } from "../../../lib/api/client";
 import type {
   CashBalance,
   CashTransaction,
+  Conversion,
   CorporateAction,
   FxRate,
   InboxRawFileSummary,
@@ -190,6 +191,35 @@ function mapCorporateAction(raw: Record<string, unknown>): CorporateAction {
     recordDate: (get(raw, "recordDate", "record_date") as string | null | undefined) ?? null,
     payDate: (get(raw, "payDate", "pay_date") as string | null | undefined) ?? null,
     details,
+    status: String(get(raw, "status", "status") ?? ""),
+    source: (get(raw, "source", "source") as string | null | undefined) ?? null,
+    rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
+    createdAt: String(get(raw, "createdAt", "created_at") ?? ""),
+    updatedAt: String(get(raw, "updatedAt", "updated_at") ?? "")
+  };
+}
+
+function mapConversion(raw: Record<string, unknown>): Conversion {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    sourceConversionId: String(get(raw, "sourceConversionId", "source_conversion_id") ?? ""),
+    conversionDate: String(get(raw, "conversionDate", "conversion_date") ?? ""),
+    conversionTime: (get(raw, "conversionTime", "conversion_time") as string | null | undefined) ?? null,
+    pair: String(get(raw, "pair", "pair") ?? ""),
+    fromCurrency: String(get(raw, "fromCurrency", "from_currency") ?? ""),
+    toCurrency: String(get(raw, "toCurrency", "to_currency") ?? ""),
+    fromAmount: Number(get(raw, "fromAmount", "from_amount") ?? 0),
+    toAmount: Number(get(raw, "toAmount", "to_amount") ?? 0),
+    fxRate: Number(get(raw, "fxRate", "fx_rate") ?? 0),
+    tradeQuantity: (get(raw, "tradeQuantity", "trade_quantity") as number | null | undefined) ?? null,
+    tradePrice: (get(raw, "tradePrice", "trade_price") as number | null | undefined) ?? null,
+    proceeds: (get(raw, "proceeds", "proceeds") as number | null | undefined) ?? null,
+    commissionAmount: (get(raw, "commissionAmount", "commission_amount") as number | null | undefined) ?? null,
+    commissionCurrency: (get(raw, "commissionCurrency", "commission_currency") as string | null | undefined) ?? null,
+    mtmPnl: (get(raw, "mtmPnl", "mtm_pnl") as number | null | undefined) ?? null,
+    tradeCode: (get(raw, "tradeCode", "trade_code") as string | null | undefined) ?? null,
     status: String(get(raw, "status", "status") ?? ""),
     source: (get(raw, "source", "source") as string | null | undefined) ?? null,
     rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
@@ -509,6 +539,24 @@ export const filingApi = {
       return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapCorporateAction(row)) };
     });
   },
+  getConversions: (
+    params?: { accountId?: string; pair?: string; from?: string; to?: string; rawFileId?: string; limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<PagedResult<Conversion>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.pair) query.set("pair", params.pair);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/conversions${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapConversion(row)) };
+    });
+  },
 
   getPositionBatches: (params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams();
@@ -582,6 +630,16 @@ export const filingApi = {
     const qs = query.toString();
     return apiClient
       .get<ListResponse>(`/filing-cabinet/corporate-action-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getConversionBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/conversion-batches${qs ? `?${qs}` : ""}`, signal)
       .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
   getPriceBatches: (params?: { securityId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {

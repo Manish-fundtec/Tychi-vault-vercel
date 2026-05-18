@@ -16,6 +16,7 @@ import { Page, PageHeader, Section } from "../../../components/common/page";
 import type {
   CashBalance,
   CashTransaction,
+  Conversion,
   CorporateAction,
   FxRate,
   InboxRawFileSummary,
@@ -151,6 +152,36 @@ const CORP_ACTION_COLUMNS: DataTableColumn<CorporateAction>[] = [
   { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" }
 ];
 
+const CONVERSION_COLUMNS: DataTableColumn<Conversion>[] = [
+  { id: "conversionDate", header: "Date", sortValue: (r) => new Date(r.conversionDate).getTime(), cell: (r) => formatDate(r.conversionDate) },
+  { id: "pair", header: "Pair", sortValue: (r) => r.pair ?? "", cell: (r) => <span className="font-medium">{r.pair}</span> },
+  {
+    id: "fromAmount",
+    header: "From",
+    align: "right",
+    sortValue: (r) => r.fromAmount,
+    cell: (r) => (
+      <span className="tabular-nums">
+        {formatNumber(r.fromAmount)} {r.fromCurrency}
+      </span>
+    )
+  },
+  {
+    id: "toAmount",
+    header: "To",
+    align: "right",
+    sortValue: (r) => r.toAmount,
+    cell: (r) => (
+      <span className="tabular-nums">
+        {formatNumber(r.toAmount)} {r.toCurrency}
+      </span>
+    )
+  },
+  { id: "fxRate", header: "FX Rate", align: "right", sortValue: (r) => r.fxRate, cell: (r) => <span className="tabular-nums">{formatNumber(r.fxRate)}</span> },
+  { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" },
+  { id: "source", header: "Source", sortValue: (r) => r.source ?? "", accessor: (r) => r.source ?? "-" }
+];
+
 export function FilingCabinetPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -158,6 +189,7 @@ export function FilingCabinetPage() {
   const [globalSecurityId, setGlobalSecurityId] = useState("");
   const [fxBase, setFxBase] = useState("");
   const [fxQuote, setFxQuote] = useState("");
+  const [conversionPair, setConversionPair] = useState("");
   const [tab, setTab] = useState("trades");
   const {
     trades,
@@ -177,6 +209,7 @@ export function FilingCabinetPage() {
     priceBatches,
     fxRateBatches,
     corporateActionBatches,
+    conversionBatches,
     loading,
     error,
     warnings
@@ -186,7 +219,8 @@ export function FilingCabinetPage() {
     accountId: accountId.trim() || undefined,
     securityId: globalSecurityId.trim() || undefined,
     fxBase: fxBase.trim().toUpperCase() || undefined,
-    fxQuote: fxQuote.trim().toUpperCase() || undefined
+    fxQuote: fxQuote.trim().toUpperCase() || undefined,
+    conversionPair: conversionPair.trim().toUpperCase() || undefined
   });
 
   const [rawTradesOpen, setRawTradesOpen] = useState(false);
@@ -196,7 +230,7 @@ export function FilingCabinetPage() {
   const [rawTradesError, setRawTradesError] = useState<string | null>(null);
   const rawTradesAbortRef = useRef<AbortController | null>(null);
 
-  type RawKind = "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
+  type RawKind = "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions";
   const [rawOpen, setRawOpen] = useState(false);
   const [rawKind, setRawKind] = useState<RawKind>("positions");
   const [rawFile, setRawFile] = useState<InboxRawFileSummary | null>(null);
@@ -279,9 +313,13 @@ export function FilingCabinetPage() {
       cashBalances: cashBalanceBatches.filter((r) => inRange(safe(r.createdAt))),
       prices: priceBatches.filter((r) => inRange(safe(r.createdAt))),
       fxRates: fxRateBatches.filter((r) => inRange(safe(r.createdAt))),
-      corporateActions: corporateActionBatches.filter((r) => inRange(safe(r.createdAt)))
+      corporateActions: corporateActionBatches.filter((r) => inRange(safe(r.createdAt))),
+      conversions: conversionBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      })
     };
-  }, [fromDate, toDate, positionBatches, transferBatches, cashTransactionBatches, cashBalanceBatches, priceBatches, fxRateBatches, corporateActionBatches]);
+  }, [fromDate, toDate, positionBatches, transferBatches, cashTransactionBatches, cashBalanceBatches, priceBatches, fxRateBatches, corporateActionBatches, conversionBatches]);
 
   const openRawFile = async (kind: RawKind, file: InboxRawFileSummary) => {
     // Ensure only one viewer modal is open at a time.
@@ -321,6 +359,15 @@ export function FilingCabinetPage() {
         setRawRows(res.items);
       } else if (kind === "corporateActions") {
         const res = await filingApi.getCorporateActions({ accountId: accountId.trim() || undefined, securityId: globalSecurityId.trim() || undefined, rawFileId: file.rawFileId, limit: 500, offset: 0 }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "conversions") {
+        const res = await filingApi.getConversions({
+          accountId: accountId.trim() || undefined,
+          pair: conversionPair.trim().toUpperCase() || undefined,
+          rawFileId: file.rawFileId,
+          limit: 500,
+          offset: 0
+        }, controller.signal);
         setRawRows(res.items);
       }
     } catch {
@@ -367,6 +414,7 @@ export function FilingCabinetPage() {
     if (t === "prices") return "prices";
     if (t === "fxRates") return "fxRates";
     if (t === "corporateActions") return "corporateActions";
+    if (t === "conversions") return "conversions";
     return null;
   };
 
@@ -648,6 +696,7 @@ export function FilingCabinetPage() {
             <TabsTrigger value="prices">Prices</TabsTrigger>
             <TabsTrigger value="fxRates">FX Rates</TabsTrigger>
             <TabsTrigger value="corporateActions">Corporate Actions</TabsTrigger>
+            <TabsTrigger value="conversions">Conversions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="trades">
@@ -760,6 +809,28 @@ export function FilingCabinetPage() {
                 onRowClick={(row) => void openRawFile("corporateActions", row)}
                 emptyTitle="No corporate action batches"
                 emptyDescription="Try adjusting the date range."
+              />
+            </Section>
+          </TabsContent>
+
+          <TabsContent value="conversions">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Input
+                value={conversionPair}
+                onChange={(e) => setConversionPair(e.target.value)}
+                placeholder="Pair (e.g. USD.HKD)"
+                className="w-full sm:w-[220px]"
+              />
+              <div className="text-xs text-muted-foreground">Optional: filter by currency pair.</div>
+            </div>
+            <Section title="Conversion batches" description="One row per raw file. Click a row to view only that file's FX conversions.">
+              <DataTable
+                data={batchFiltered.conversions}
+                columns={batchFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("conversions", row)}
+                emptyTitle="No conversion batches"
+                emptyDescription="Try adjusting the date range or account filter."
               />
             </Section>
           </TabsContent>
@@ -1088,7 +1159,7 @@ function RawFileRecordsModal({
   onClose
 }: {
   open: boolean;
-  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions";
+  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions";
   file: InboxRawFileSummary | null;
   loading: boolean;
   error: string | null;
@@ -1110,7 +1181,9 @@ function RawFileRecordsModal({
             ? "Prices"
             : kind === "fxRates"
               ? "FX rates"
-              : "Corporate actions";
+              : kind === "conversions"
+                ? "Conversions"
+                : "Corporate actions";
 
   const columns =
     kind === "positions"
@@ -1125,7 +1198,9 @@ function RawFileRecordsModal({
             ? (PRICE_COLUMNS as DataTableColumn<unknown>[])
             : kind === "fxRates"
               ? (FX_COLUMNS as DataTableColumn<unknown>[])
-              : (CORP_ACTION_COLUMNS as DataTableColumn<unknown>[]);
+              : kind === "conversions"
+                ? (CONVERSION_COLUMNS as DataTableColumn<unknown>[])
+                : (CORP_ACTION_COLUMNS as DataTableColumn<unknown>[]);
 
   return (
     <Drawer

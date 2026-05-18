@@ -136,6 +136,33 @@ export interface CorporateAction {
   updatedAt: string;
 }
 
+export interface Conversion {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  sourceConversionId: string;
+  conversionDate: string;
+  conversionTime?: string | null;
+  pair: string;
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmount: number;
+  toAmount: number;
+  fxRate: number;
+  tradeQuantity?: number | null;
+  tradePrice?: number | null;
+  proceeds?: number | null;
+  commissionAmount?: number | null;
+  commissionCurrency?: string | null;
+  mtmPnl?: number | null;
+  tradeCode?: string | null;
+  status: string;
+  source?: string | null;
+  rawRecordId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SecurityMaster {
   id: string;
   vaultId?: string | null;

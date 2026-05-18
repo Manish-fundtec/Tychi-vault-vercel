@@ -3,6 +3,7 @@ import { filingApi } from "../api/filing-api";
 import type {
   CashBalance,
   CashTransaction,
+  Conversion,
   CorporateAction,
   FxRate,
   InboxRawFileSummary,
@@ -21,6 +22,7 @@ export function useFilingData(filters?: {
   securityId?: string;
   fxBase?: string;
   fxQuote?: string;
+  conversionPair?: string;
   rawFileId?: string;
 }) {
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -31,6 +33,7 @@ export function useFilingData(filters?: {
   const [prices, setPrices] = useState<Price[]>([]);
   const [fxRates, setFxRates] = useState<FxRate[]>([]);
   const [corporateActions, setCorporateActions] = useState<CorporateAction[]>([]);
+  const [conversions, setConversions] = useState<Conversion[]>([]);
   const [securities, setSecurities] = useState<SecurityMaster[]>([]);
   const [securityBatches, setSecurityBatches] = useState<SecurityBatchSummary[]>([]);
   const [inboxRawFiles, setInboxRawFiles] = useState<InboxRawFileSummary[]>([]);
@@ -40,6 +43,7 @@ export function useFilingData(filters?: {
   const [cashBalanceBatches, setCashBalanceBatches] = useState<InboxRawFileSummary[]>([]);
   const [fxRateBatches, setFxRateBatches] = useState<InboxRawFileSummary[]>([]);
   const [corporateActionBatches, setCorporateActionBatches] = useState<InboxRawFileSummary[]>([]);
+  const [conversionBatches, setConversionBatches] = useState<InboxRawFileSummary[]>([]);
   const [priceBatches, setPriceBatches] = useState<InboxRawFileSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,17 @@ export function useFilingData(filters?: {
           filters?.accountId || filters?.securityId
             ? filingApi.getCorporateActions({ accountId: filters?.accountId, securityId: filters?.securityId, from: filters?.from, to: filters?.to, limit: 500, offset: 0 }, controller.signal)
             : Promise.resolve({ items: [], limit: 0, offset: 0 });
+        const safeConversions = filingApi.getConversions(
+          {
+            accountId: filters?.accountId,
+            pair: filters?.conversionPair,
+            from: filters?.from,
+            to: filters?.to,
+            limit: 500,
+            offset: 0
+          },
+          controller.signal
+        );
 
         const results = await Promise.allSettled([
           filters?.rawFileId
@@ -91,7 +106,9 @@ export function useFilingData(filters?: {
           filingApi.getCashBalanceBatches({ accountId: filters?.accountId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
           filingApi.getPriceBatches({ securityId: filters?.securityId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
           filingApi.getFxRateBatches({ base: filters?.fxBase, quote: filters?.fxQuote, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
-          filingApi.getCorporateActionBatches({ accountId: filters?.accountId, securityId: filters?.securityId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal)
+          filingApi.getCorporateActionBatches({ accountId: filters?.accountId, securityId: filters?.securityId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
+          safeConversions,
+          filingApi.getConversionBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal)
         ]);
 
         const nextWarnings: string[] = [];
@@ -123,6 +140,8 @@ export function useFilingData(filters?: {
         setIfOk(results[15] as PromiseSettledResult<InboxRawFileSummary[]>, setPriceBatches, "Price batches", []);
         setIfOk(results[16] as PromiseSettledResult<InboxRawFileSummary[]>, setFxRateBatches, "FX rate batches", []);
         setIfOk(results[17] as PromiseSettledResult<InboxRawFileSummary[]>, setCorporateActionBatches, "Corporate action batches", []);
+        setIfOk(results[18] as PromiseSettledResult<{ items: Conversion[] }>, (v) => setConversions(v.items), "Conversions", { items: [] });
+        setIfOk(results[19] as PromiseSettledResult<InboxRawFileSummary[]>, setConversionBatches, "Conversion batches", []);
 
         setWarnings(nextWarnings);
 
@@ -145,7 +164,8 @@ export function useFilingData(filters?: {
     filters?.rawFileId,
     filters?.securityId,
     filters?.fxBase,
-    filters?.fxQuote
+    filters?.fxQuote,
+    filters?.conversionPair
   ]);
 
   return useMemo(
@@ -158,6 +178,7 @@ export function useFilingData(filters?: {
       prices,
       fxRates,
       corporateActions,
+      conversions,
       securities,
       securityBatches,
       inboxRawFiles,
@@ -168,6 +189,7 @@ export function useFilingData(filters?: {
       priceBatches,
       fxRateBatches,
       corporateActionBatches,
+      conversionBatches,
       loading,
       error,
       warnings
@@ -181,6 +203,7 @@ export function useFilingData(filters?: {
       prices,
       fxRates,
       corporateActions,
+      conversions,
       securities,
       securityBatches,
       inboxRawFiles,
@@ -191,6 +214,7 @@ export function useFilingData(filters?: {
       priceBatches,
       fxRateBatches,
       corporateActionBatches,
+      conversionBatches,
       loading,
       error,
       warnings
