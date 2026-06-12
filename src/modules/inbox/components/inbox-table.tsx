@@ -6,8 +6,14 @@ import { InboxStatusBadge } from "./inbox-status-badge";
 import { InboxFileViewerDrawer } from "./inbox-file-viewer";
 import { DataTable, type DataTableColumn } from "../../../components/common/data-table";
 
-export function InboxTable({ data }: { data: InboxFile[] }) {
+type InboxTableProps = {
+  data: InboxFile[];
+  onDelete?: (file: InboxFile) => Promise<void>;
+};
+
+export function InboxTable({ data, onDelete }: InboxTableProps) {
   const [viewFile, setViewFile] = useState<InboxFile | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const columns: DataTableColumn<InboxFile>[] = [
     {
@@ -49,6 +55,29 @@ export function InboxTable({ data }: { data: InboxFile[] }) {
           <Button variant="outline" size="sm" onClick={() => setViewFile(item)}>
             View
           </Button>
+          {onDelete ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              disabled={deletingId === item.id}
+              onClick={async () => {
+                const ok = window.confirm(
+                  `Delete "${item.fileName}"?\n\nThis removes the inbox file and all related vault records (trades, positions, cash, buffers, etc.). This cannot be undone.`
+                );
+                if (!ok) return;
+                setDeletingId(item.id);
+                try {
+                  await onDelete(item);
+                  if (viewFile?.id === item.id) setViewFile(null);
+                } finally {
+                  setDeletingId(null);
+                }
+              }}
+            >
+              {deletingId === item.id ? "Deleting…" : "Delete"}
+            </Button>
+          ) : null}
           {item.status === "FAILED" ? <Button size="sm">Retry</Button> : null}
           {item.status === "PENDING_CONFIRMATION" ? <Button size="sm">Review</Button> : null}
         </div>

@@ -9,6 +9,7 @@ import { ErrorState } from "../../../components/common/error-state";
 import { Page, PageHeader, Section } from "../../../components/common/page";
 import { DataTable, type DataTableColumn } from "../../../components/common/data-table";
 import { ApiError } from "../../../lib/api/client";
+import { deleteInboxFile } from "../../inbox/api/inbox-api";
 import { InboxTable } from "../../inbox/components/inbox-table";
 import { useInboxFiles } from "../../inbox/hooks/use-inbox-files";
 import {
@@ -201,7 +202,15 @@ export function SetupEmailPage() {
         {!rawFilesLoading && !rawFilesError && rawFiles.length === 0 ? (
           <EmptyState title="No files yet" description="Uploads and ingested files appear here, same as the Inbox page." />
         ) : null}
-        {!rawFilesLoading && rawFiles.length > 0 ? <InboxTable data={rawFiles} /> : null}
+        {!rawFilesLoading && rawFiles.length > 0 ? (
+          <InboxTable
+            data={rawFiles}
+            onDelete={async (file) => {
+              await deleteInboxFile(file.id);
+              await reloadRawFiles();
+            }}
+          />
+        ) : null}
       </Section>
 
       <Drawer

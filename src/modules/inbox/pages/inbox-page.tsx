@@ -4,7 +4,7 @@ import { EmptyState } from "../../../components/common/empty-state";
 import { ErrorState } from "../../../components/common/error-state";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { ApiError } from "../../../lib/api/client";
-import { fetchInboxFiles, uploadInboxFile } from "../api/inbox-api";
+import { deleteInboxFile, fetchInboxFiles, uploadInboxFile } from "../api/inbox-api";
 import { UploadDropzone } from "../components/upload-dropzone";
 import { InboxTable } from "../components/inbox-table";
 import { useInboxFiles } from "../hooks/use-inbox-files";
@@ -121,7 +121,30 @@ export function InboxPage() {
         <EmptyState title="No files yet" description="New uploads will appear here automatically." />
       ) : null}
 
-      {!loading && data.length > 0 ? <InboxTable data={data} /> : null}
+      {!loading && data.length > 0 ? (
+        <InboxTable
+          data={data}
+          onDelete={async (file) => {
+            try {
+              await deleteInboxFile(file.id);
+              await reload();
+              setUploadNotice({ variant: "success", text: `"${file.fileName}" deleted.` });
+              clearTimerRef.current = setTimeout(() => {
+                setUploadNotice(null);
+                clearTimerRef.current = null;
+              }, 5000);
+            } catch (e) {
+              const msg =
+                e instanceof ApiError
+                  ? e.message
+                  : e instanceof Error
+                    ? e.message
+                    : "Delete failed.";
+              setUploadNotice({ variant: "error", text: msg });
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -89,6 +89,20 @@ export function fetchInboxFiles(signal?: AbortSignal) {
  * Multipart upload: only `file` is sent. Do not append `accountId` here so
  * backend can persist `account_id` as null until you need it again.
  */
+export async function deleteInboxFile(id: string, signal?: AbortSignal) {
+  const res = await vaultAuthorizedFetch(`/inbox/files/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    signal
+  });
+  if (!res.ok) {
+    const msg = await readVaultErrorMessage(res);
+    throw new ApiError(msg, res.status);
+  }
+  const text = await res.text();
+  if (!text.trim()) return { ok: true as const, rawFileId: id };
+  return JSON.parse(text) as { ok: boolean; rawFileId: string; deleted?: Record<string, number> };
+}
+
 export function uploadInboxFile(file: File, signal?: AbortSignal) {
   const formData = new FormData();
   // Provide explicit filename for maximum compatibility across runtimes.
