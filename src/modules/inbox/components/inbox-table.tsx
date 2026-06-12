@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Eye, Loader2, Trash2 } from "lucide-react";
 import type { InboxFile } from "../types/inbox";
 import { formatDate } from "../../../lib/utils";
 import { Button } from "../../../components/ui/button";
@@ -52,14 +53,23 @@ export function InboxTable({ data, onDelete }: InboxTableProps) {
       align: "right",
       cell: (item) => (
         <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => setViewFile(item)}>
-            View
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 w-9 p-0"
+            title="View file"
+            aria-label={`View ${item.fileName}`}
+            onClick={() => setViewFile(item)}
+          >
+            <Eye className="h-4 w-4" aria-hidden />
           </Button>
           {onDelete ? (
             <Button
               variant="outline"
               size="sm"
-              className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+              className="h-9 w-9 border-red-200 p-0 text-red-700 hover:bg-red-50 hover:text-red-800"
+              title="Delete file"
+              aria-label={`Delete ${item.fileName}`}
               disabled={deletingId === item.id}
               onClick={async () => {
                 const ok = window.confirm(
@@ -75,7 +85,11 @@ export function InboxTable({ data, onDelete }: InboxTableProps) {
                 }
               }}
             >
-              {deletingId === item.id ? "Deleting…" : "Delete"}
+              {deletingId === item.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Trash2 className="h-4 w-4" aria-hidden />
+              )}
             </Button>
           ) : null}
           {item.status === "FAILED" ? <Button size="sm">Retry</Button> : null}
