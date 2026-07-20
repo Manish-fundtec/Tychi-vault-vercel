@@ -18,6 +18,18 @@ export function InboxTable({ data, onDelete }: InboxTableProps) {
 
   const columns: DataTableColumn<InboxFile>[] = [
     {
+      id: "id",
+      header: "File ID",
+      accessor: (r) => r.id,
+      sortValue: (r) => r.id,
+      filterValue: (r) => r.id,
+      cell: (r) => (
+        <span className="font-mono text-xs text-muted-foreground" title={r.id}>
+          {r.id || "-"}
+        </span>
+      )
+    },
+    {
       id: "fileName",
       header: "File Name",
       accessor: (r) => r.fileName,
