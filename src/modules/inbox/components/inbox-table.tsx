@@ -19,10 +19,18 @@ export function InboxTable({ data, onDelete }: InboxTableProps) {
   const columns: DataTableColumn<InboxFile>[] = [
     {
       id: "fileName",
-      header: "File",
+      header: "File Name",
       accessor: (r) => r.fileName,
       sortValue: (r) => r.fileName,
-      cell: (r) => <span className="font-medium">{r.fileName}</span>
+      cell: (r) => <span className="font-medium">{r.fileName || r.id}</span>,
+      filterValue: (r) => `${r.fileName ?? ""} ${r.id}`
+    },
+    {
+      id: "fileType",
+      header: "Type",
+      accessor: (r) => r.fileType ?? "",
+      sortValue: (r) => r.fileType ?? "",
+      cell: (r) => r.fileType || "-"
     },
     { id: "source", header: "Source", accessor: (r) => r.source, sortValue: (r) => r.source },
     { id: "channel", header: "From", accessor: (r) => r.channel, sortValue: (r) => r.channel },

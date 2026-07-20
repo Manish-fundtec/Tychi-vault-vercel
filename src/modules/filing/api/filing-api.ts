@@ -256,6 +256,17 @@ function mapInboxFileSummary(raw: Record<string, unknown>): InboxRawFileSummary 
     ? recordTypesRaw.filter((x): x is string => typeof x === "string")
     : [];
 
+  const fileNameRaw =
+    get(raw, "fileName", "file_name") ??
+    get(raw, "originalName", "original_name") ??
+    get(raw, "filename", "filename") ??
+    "";
+  const createdAtRaw =
+    get(raw, "createdAt", "created_at") ??
+    get(raw, "uploadedAt", "uploaded_at") ??
+    get(raw, "processedAt", "processed_at") ??
+    "";
+
   return {
     rawFileId: String(get(raw, "rawFileId", "raw_file_id") ?? ""),
     accountId: (get(raw, "accountId", "account_id") as string | null | undefined) ?? null,
@@ -269,8 +280,8 @@ function mapInboxFileSummary(raw: Record<string, unknown>): InboxRawFileSummary 
     recordCount: Number(get(raw, "recordCount", "record_count") ?? 0),
     fromDate: (get(raw, "fromDate", "from_date") as string | null | undefined) ?? null,
     toDate: (get(raw, "toDate", "to_date") as string | null | undefined) ?? null,
-    createdAt: String(get(raw, "createdAt", "created_at") ?? ""),
-    fileName: String(get(raw, "fileName", "file_name") ?? ""),
+    createdAt: String(createdAtRaw ?? ""),
+    fileName: String(fileNameRaw ?? ""),
     recordTypes
   };
 }

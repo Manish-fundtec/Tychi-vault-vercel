@@ -307,13 +307,34 @@ export function FilingCabinetPage() {
     const safe = (v: string | undefined | null) => (v ? v : "");
 
     return {
-      positions: positionBatches.filter((r) => inRange(safe(r.createdAt))),
-      transfers: transferBatches.filter((r) => inRange(safe(r.createdAt))),
-      cash: cashTransactionBatches.filter((r) => inRange(safe(r.createdAt))),
-      cashBalances: cashBalanceBatches.filter((r) => inRange(safe(r.createdAt))),
-      prices: priceBatches.filter((r) => inRange(safe(r.createdAt))),
-      fxRates: fxRateBatches.filter((r) => inRange(safe(r.createdAt))),
-      corporateActions: corporateActionBatches.filter((r) => inRange(safe(r.createdAt))),
+      positions: positionBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      transfers: transferBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      cash: cashTransactionBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      cashBalances: cashBalanceBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      prices: priceBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      fxRates: fxRateBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      corporateActions: corporateActionBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
       conversions: conversionBatches.filter((r) => {
         const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
         return d ? inRange(d) : true;
@@ -420,6 +441,13 @@ export function FilingCabinetPage() {
 
   const tradeFileColumns: DataTableColumn<InboxRawFileSummary>[] = useMemo(
     () => [
+      {
+        id: "fileName",
+        header: "File Name",
+        sortValue: (r) => r.fileName || r.rawFileId,
+        cell: (r) => <span className="font-medium">{r.fileName || r.rawFileId || "-"}</span>,
+        filterValue: (r) => `${r.fileName ?? ""} ${r.rawFileId ?? ""}`
+      },
       {
         id: "account",
         header: "Account",
@@ -540,6 +568,13 @@ export function FilingCabinetPage() {
 
   const batchFileColumns: DataTableColumn<InboxRawFileSummary>[] = useMemo(
     () => [
+      {
+        id: "fileName",
+        header: "File Name",
+        sortValue: (r) => r.fileName || r.rawFileId,
+        cell: (r) => <span className="font-medium">{r.fileName || r.rawFileId || "-"}</span>,
+        filterValue: (r) => `${r.fileName ?? ""} ${r.rawFileId ?? ""}`
+      },
       {
         id: "account",
         header: "Account",
@@ -1127,7 +1162,7 @@ function RawFileTradesModal({
       open={open}
       onClose={onClose}
       title="Trades"
-      description={`${file.fileName}${file.createdAt ? ` • ${formatDate(file.createdAt)}` : ""}`}
+      description={`${file.fileName || file.rawFileId}${file.createdAt ? ` • ${formatDate(file.createdAt)}` : ""}`}
       widthClassName="w-[min(980px,calc(100vw-24px))]"
       placement="center"
     >
@@ -1207,7 +1242,7 @@ function RawFileRecordsModal({
       open={open}
       onClose={onClose}
       title={title}
-      description={`${file.fileName}${file.createdAt ? ` • ${formatDate(file.createdAt)}` : ""}`}
+      description={`${file.fileName || file.rawFileId}${file.createdAt ? ` • ${formatDate(file.createdAt)}` : ""}`}
       widthClassName="w-[min(980px,calc(100vw-24px))]"
       placement="center"
     >

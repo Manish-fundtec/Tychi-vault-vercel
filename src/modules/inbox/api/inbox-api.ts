@@ -62,13 +62,15 @@ function mapInboxFile(raw: Record<string, unknown>): InboxFile {
     normalizedErrorMessage.toUpperCase().includes("FILE_DATA_ALREADY_EXISTS")
       ? "FILE_ALREADY_EXISTS"
       : ((rawStatus as InboxFile["status"]) ?? "FAILED");
+  const fileNameRaw =
+    get("fileName", "file_name") ?? get("originalName", "original_name") ?? get("filename", "filename") ?? "";
   return {
     id: String(get("id", "id")),
-    fileName: String(get("fileName", "file_name") ?? ""),
+    fileName: String(fileNameRaw ?? ""),
     fileType: (get("fileType", "file_type") as string | undefined) ?? undefined,
     source: get("source", "source") as InboxFile["source"],
     channel: channelRaw as InboxFile["channel"],
-    uploadedAt: String(get("uploadedAt", "uploaded_at") ?? ""),
+    uploadedAt: String(get("uploadedAt", "uploaded_at") ?? get("createdAt", "created_at") ?? ""),
     status,
     recordCount: Number(get("recordCount", "record_count") ?? 0),
     s3Uri: (typeof s3Uri === "string" ? s3Uri : null) ?? null,
