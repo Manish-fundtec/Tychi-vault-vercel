@@ -126,13 +126,22 @@ export function InboxPage() {
           data={data}
           onDelete={async (file) => {
             try {
-              await deleteInboxFile(file.id);
+              const result = await deleteInboxFile(file.id);
               await reload();
-              setUploadNotice({ variant: "success", text: `"${file.fileName}" deleted.` });
+              const tychiMsg =
+                result && typeof result === "object" && "message" in result && typeof result.message === "string"
+                  ? result.message.trim()
+                  : "";
+              setUploadNotice({
+                variant: "success",
+                text: tychiMsg
+                  ? `"${file.fileName}" deleted. ${tychiMsg}`
+                  : `"${file.fileName}" deleted from Tychi and Vault.`
+              });
               clearTimerRef.current = setTimeout(() => {
                 setUploadNotice(null);
                 clearTimerRef.current = null;
-              }, 5000);
+              }, 7000);
             } catch (e) {
               const msg =
                 e instanceof ApiError
@@ -140,6 +149,7 @@ export function InboxPage() {
                   : e instanceof Error
                     ? e.message
                     : "Delete failed.";
+              // Pricing / Tychi failures surface here; Vault file is kept.
               setUploadNotice({ variant: "error", text: msg });
             }
           }}

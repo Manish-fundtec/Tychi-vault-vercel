@@ -102,7 +102,13 @@ export async function deleteInboxFile(id: string, signal?: AbortSignal) {
   }
   const text = await res.text();
   if (!text.trim()) return { ok: true as const, rawFileId: id };
-  return JSON.parse(text) as { ok: boolean; rawFileId: string; deleted?: Record<string, number> };
+  return JSON.parse(text) as {
+    ok: boolean;
+    rawFileId: string;
+    deleted?: Record<string, number>;
+    message?: string;
+    tychi?: unknown;
+  };
 }
 
 export function uploadInboxFile(file: File, signal?: AbortSignal) {

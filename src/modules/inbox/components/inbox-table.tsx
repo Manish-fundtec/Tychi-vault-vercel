@@ -93,7 +93,12 @@ export function InboxTable({ data, onDelete }: InboxTableProps) {
               disabled={deletingId === item.id}
               onClick={async () => {
                 const ok = window.confirm(
-                  `Delete "${item.fileName}"?\n\nThis removes the inbox file and all related vault records (trades, positions, cash, buffers, etc.). This cannot be undone.`
+                  `Delete "${item.fileName}"?\n\nThis removes:\n` +
+                    `• Vault inbox file and related Vault records\n` +
+                    `• Booked Tychi trades for this file (lots, journals)\n` +
+                    `• Unused symbols created only for those trades\n\n` +
+                    `If pricing has already been applied in Tychi, delete will be blocked until pricing is reverted.\n\n` +
+                    `This cannot be undone.`
                 );
                 if (!ok) return;
                 setDeletingId(item.id);
