@@ -4,7 +4,30 @@ import type { VaultAccount } from "../types/accounts";
 import { AccountStatusBadge, AccountTypeBadge, SourceSystemBadge } from "./account-badges";
 import { DataTable, type DataTableColumn } from "../../../components/common/data-table";
 
-export function AccountsTable({ data, onEdit }: { data: VaultAccount[]; onEdit: (account: VaultAccount) => void }) {
+function canGetData(account: VaultAccount): boolean {
+  return (
+    String(account.sourceSystem || "").toUpperCase() === "IBKR" &&
+    String(account.accountType || "").toUpperCase() === "BROKER"
+  );
+}
+
+function hasFlexCreds(account: VaultAccount): boolean {
+  const token = String(account.authToken || "").trim();
+  const queryId = String(account.queryId || "").trim();
+  return Boolean(token && queryId && token !== "********");
+}
+
+export function AccountsTable({
+  data,
+  onEdit,
+  onGetData,
+  syncingId
+}: {
+  data: VaultAccount[];
+  onEdit: (account: VaultAccount) => void;
+  onGetData: (account: VaultAccount) => void;
+  syncingId?: string | null;
+}) {
   const columns: DataTableColumn<VaultAccount>[] = [
     {
       id: "accountName",
@@ -56,25 +79,45 @@ export function AccountsTable({ data, onEdit }: { data: VaultAccount[]; onEdit: 
       id: "actions",
       header: "Actions",
       align: "right",
-      cell: (r) => (
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit(r);
-            }}
-          >
-            Edit
-          </Button>
-        </div>
-      )
+      cell: (r) => {
+        const busy = syncingId === r.id;
+        const showGetData = canGetData(r);
+        return (
+          <div className="flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(r);
+              }}
+              disabled={busy}
+            >
+              Edit
+            </Button>
+            {showGetData ? (
+              <Button
+                size="sm"
+                variant="default"
+                title={
+                  hasFlexCreds(r)
+                    ? "Fetch latest IBKR Flex statement"
+                    : "Requires Query ID and Auth Token — add them in Edit first"
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onGetData(r);
+                }}
+                disabled={busy || Boolean(syncingId)}
+              >
+                {busy ? "Fetching…" : "Get Data"}
+              </Button>
+            ) : null}
+          </div>
+        );
+      }
     }
   ];
 
-  return (
-    <DataTable data={data} columns={columns} getRowId={(r) => r.id} />
-  );
+  return <DataTable data={data} columns={columns} getRowId={(r) => r.id} />;
 }
-

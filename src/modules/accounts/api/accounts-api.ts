@@ -66,3 +66,29 @@ export function updateVaultAccount(id: string, input: UpdateVaultAccountInput, s
   );
 }
 
+export type RefreshVaultAccountResult = {
+  ok: boolean;
+  message?: string;
+  accountId?: string;
+  result?: {
+    tradesParsed?: number;
+    positionsParsed?: number;
+    cashParsed?: number;
+    parsedRowsInserted?: number;
+    rawFileId?: string | null;
+    referenceCode?: string;
+  };
+};
+
+/** Fetch IBKR Flex XML for this vault account (requires authToken + queryId). */
+export function refreshVaultAccount(id: string, signal?: AbortSignal) {
+  return apiClient.post<RefreshVaultAccountResult>(
+    `/accounts/${id}/refresh`,
+    JSON.stringify({}),
+    {
+      "Content-Type": "application/json"
+    },
+    signal
+  );
+}
+

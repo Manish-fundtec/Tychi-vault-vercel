@@ -4,7 +4,7 @@ import { Button } from "../../../components/ui/button";
 import { Skeleton } from "../../../components/ui/skeleton";
 import { EmptyState } from "../../../components/common/empty-state";
 import { ErrorState } from "../../../components/common/error-state";
-import { createVaultAccount, updateVaultAccount } from "../api/accounts-api";
+import { createVaultAccount, refreshVaultAccount, updateVaultAccount } from "../api/accounts-api";
 import { AddAccountModal } from "../components/add-account-modal";
 import { EditAccountModal } from "../components/edit-account-modal";
 import { AccountsTable } from "../components/accounts-table";
@@ -19,6 +19,9 @@ export function SetupAccountsPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<VaultAccount | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const onCreate = async (input: CreateVaultAccountInput) => {
     setCreating(true);
@@ -53,6 +56,41 @@ export function SetupAccountsPage() {
     }
   };
 
+  const onGetData = async (account: VaultAccount) => {
+    setSyncError(null);
+    setSyncMessage(null);
+
+    const token = String(account.authToken || "").trim();
+    const queryId = String(account.queryId || "").trim();
+    if (!token || !queryId) {
+      setSyncError("Query ID or Auth Token is missing. Please add them in Edit account before syncing.");
+      return;
+    }
+
+    setSyncingId(account.id);
+    try {
+      const res = await refreshVaultAccount(account.id);
+      const trades = res?.result?.tradesParsed ?? 0;
+      const positions = res?.result?.positionsParsed ?? 0;
+      const cash = res?.result?.cashParsed ?? 0;
+      const inserted = res?.result?.parsedRowsInserted ?? 0;
+      setSyncMessage(
+        res?.message
+          ? `${res.message} (trades: ${trades}, positions: ${positions}, cash: ${cash}, rows: ${inserted})`
+          : `IBKR data fetched (trades: ${trades}, positions: ${positions}, cash: ${cash}, rows: ${inserted})`
+      );
+      await reload();
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message
+          ? err.message
+          : "Unable to fetch IBKR data.";
+      setSyncError(msg);
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -67,6 +105,12 @@ export function SetupAccountsPage() {
 
       {createError ? <ErrorState message={createError} onRetry={() => setOpen(true)} /> : null}
       {error ? <ErrorState message={error} onRetry={reload} /> : null}
+      {syncError ? <ErrorState message={syncError} onRetry={() => setSyncError(null)} /> : null}
+      {syncMessage ? (
+        <Card className="border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          {syncMessage}
+        </Card>
+      ) : null}
 
       {loading ? (
         <Card className="space-y-3">
@@ -80,7 +124,9 @@ export function SetupAccountsPage() {
         <EmptyState title="No accounts yet" description="Add your first vault account to enable ingestion and filing." />
       ) : null}
 
-      {!loading && data.length > 0 ? <AccountsTable data={data} onEdit={onEdit} /> : null}
+      {!loading && data.length > 0 ? (
+        <AccountsTable data={data} onEdit={onEdit} onGetData={onGetData} syncingId={syncingId} />
+      ) : null}
 
       <AddAccountModal open={open} onClose={() => setOpen(false)} onCreate={onCreate} />
       <EditAccountModal
@@ -96,4 +142,3 @@ export function SetupAccountsPage() {
     </div>
   );
 }
-
