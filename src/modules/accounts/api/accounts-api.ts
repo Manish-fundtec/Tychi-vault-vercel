@@ -1,4 +1,4 @@
-import { apiClient, ibkrAuthorizedFetch } from "../../../lib/api/client";
+import { apiClient, ibkrAuthorizedFetch, IBKR_API_BASE, VAULT_API_BASE } from "../../../lib/api/client";
 import type { CreateVaultAccountInput, UpdateVaultAccountInput, VaultAccount } from "../types/accounts";
 
 type VaultAccountsResponse =
@@ -87,6 +87,7 @@ export type RefreshVaultAccountResult = {
 
 /** Direct IBKR Flex sync (same backend handler as account refresh for IBKR broker accounts). */
 export async function syncIbkrAccount(accountId: string, signal?: AbortSignal): Promise<RefreshVaultAccountResult> {
+  console.info("[accounts] IBKR sync fallback", { url: `${IBKR_API_BASE}/sync`, accountId });
   const response = await ibkrAuthorizedFetch("/sync", {
     method: "POST",
     signal,
@@ -139,6 +140,8 @@ export async function syncIbkrAccount(accountId: string, signal?: AbortSignal): 
 
 /** Fetch IBKR Flex XML for this vault account (requires authToken + queryId). */
 export async function refreshVaultAccount(id: string, signal?: AbortSignal): Promise<RefreshVaultAccountResult> {
+  const refreshUrl = `${VAULT_API_BASE}/accounts/${id}/refresh`;
+  console.info("[accounts] refresh request", { url: refreshUrl, accountId: id });
   try {
     const res = await apiClient.post<RefreshVaultAccountResult>(
       `/accounts/${id}/refresh`,

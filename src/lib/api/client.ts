@@ -271,14 +271,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!response.ok) {
     const message = await readErrorMessage(response);
-    if (import.meta.env.DEV) {
-      console.log("[api] error", { url, status: response.status, message });
-    }
+    console.warn("[api] error", { url, status: response.status, message });
     throw new ApiError(message, response.status);
   }
 
-  if (import.meta.env.DEV) {
-    console.log("[api] success", { url, status: response.status });
+  if (import.meta.env.DEV || path.includes("/refresh") || path.includes("/sync")) {
+    console.info("[api] success", { url, status: response.status });
   }
 
   return readSuccessBody<T>(response);
