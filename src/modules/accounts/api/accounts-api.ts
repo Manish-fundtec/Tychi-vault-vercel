@@ -1,4 +1,4 @@
-import { apiClient } from "../../../lib/api/client";
+import { apiClient, ibkrAuthorizedFetch } from "../../../lib/api/client";
 import type { CreateVaultAccountInput, UpdateVaultAccountInput, VaultAccount } from "../types/accounts";
 
 type VaultAccountsResponse =
@@ -68,8 +68,11 @@ export function updateVaultAccount(id: string, input: UpdateVaultAccountInput, s
 
 export type RefreshVaultAccountResult = {
   ok: boolean;
+  action?: string;
   message?: string;
   accountId?: string;
+  sourceSystem?: string;
+  accountType?: string;
   result?: {
     tradesParsed?: number;
     positionsParsed?: number;
@@ -77,18 +80,84 @@ export type RefreshVaultAccountResult = {
     parsedRowsInserted?: number;
     rawFileId?: string | null;
     referenceCode?: string;
+    symbolsParsed?: number;
+    message?: string;
   };
 };
 
-/** Fetch IBKR Flex XML for this vault account (requires authToken + queryId). */
-export function refreshVaultAccount(id: string, signal?: AbortSignal) {
-  return apiClient.post<RefreshVaultAccountResult>(
-    `/accounts/${id}/refresh`,
-    JSON.stringify({}),
-    {
+/** Direct IBKR Flex sync (same backend handler as account refresh for IBKR broker accounts). */
+export async function syncIbkrAccount(accountId: string, signal?: AbortSignal): Promise<RefreshVaultAccountResult> {
+  const response = await ibkrAuthorizedFetch("/sync", {
+    method: "POST",
+    signal,
+    headers: {
       "Content-Type": "application/json"
     },
-    signal
-  );
+    body: JSON.stringify({ accountId })
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    let message = `IBKR sync failed (${response.status})`;
+    try {
+      const parsed = JSON.parse(text) as Record<string, unknown>;
+      if (typeof parsed.error === "string") message = parsed.error;
+      if (typeof parsed.message === "string") message = parsed.message;
+    } catch {
+      if (text.trim()) message = text.slice(0, 300);
+    }
+    throw new Error(message);
+  }
+
+  let payload: Record<string, unknown> = {};
+  if (text.trim()) {
+    try {
+      payload = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      payload = {};
+    }
+  }
+
+  const results = Array.isArray(payload.results) ? payload.results : [];
+  const first = (results[0] ?? {}) as Record<string, unknown>;
+  return {
+    ok: Boolean(first.ok ?? payload.ok ?? true),
+    action: "IBKR_FLEX_SYNC",
+    accountId,
+    result: {
+      tradesParsed: Number(first.tradesParsed ?? 0),
+      positionsParsed: Number(first.positionsParsed ?? 0),
+      cashParsed: Number(first.cashParsed ?? 0),
+      parsedRowsInserted: Number(first.parsedRowsInserted ?? 0),
+      rawFileId: (first.rawFileId as string | null | undefined) ?? null,
+      referenceCode: (first.referenceCode as string | undefined) ?? undefined,
+      symbolsParsed: Number(first.symbolsParsed ?? 0),
+      message: typeof first.message === "string" ? first.message : undefined
+    }
+  };
+}
+
+/** Fetch IBKR Flex XML for this vault account (requires authToken + queryId). */
+export async function refreshVaultAccount(id: string, signal?: AbortSignal): Promise<RefreshVaultAccountResult> {
+  try {
+    const res = await apiClient.post<RefreshVaultAccountResult>(
+      `/accounts/${id}/refresh`,
+      JSON.stringify({}),
+      {
+        "Content-Type": "application/json"
+      },
+      signal
+    );
+    if (res && typeof res.ok === "boolean") {
+      return res;
+    }
+    return { ok: true, accountId: id, action: "IBKR_FLEX_SYNC", result: res ?? undefined };
+  } catch (err) {
+    // Backward compatibility: older backends without /refresh — fall back to /api/v1/ibkr/sync.
+    if (err instanceof Error && /cannot post|404|route may be missing/i.test(err.message)) {
+      return syncIbkrAccount(id, signal);
+    }
+    throw err;
+  }
 }
 

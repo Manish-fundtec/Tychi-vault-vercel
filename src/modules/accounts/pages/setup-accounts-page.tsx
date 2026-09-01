@@ -74,10 +74,12 @@ export function SetupAccountsPage() {
       const positions = res?.result?.positionsParsed ?? 0;
       const cash = res?.result?.cashParsed ?? 0;
       const inserted = res?.result?.parsedRowsInserted ?? 0;
+      const ref = res?.result?.referenceCode;
+      const action = res?.action ?? "IBKR_FLEX_SYNC";
       setSyncMessage(
-        res?.message
-          ? `${res.message} (trades: ${trades}, positions: ${positions}, cash: ${cash}, rows: ${inserted})`
-          : `IBKR data fetched (trades: ${trades}, positions: ${positions}, cash: ${cash}, rows: ${inserted})`
+        res?.result?.message
+          ? `${res.result.message} (trades: ${trades}, positions: ${positions}, cash: ${cash}, rows: ${inserted})`
+          : `${action} complete${ref ? ` · ref ${ref}` : ""} — trades: ${trades}, positions: ${positions}, cash: ${cash}, rows: ${inserted}`
       );
       await reload();
     } catch (err) {

@@ -27,6 +27,20 @@ const BASE_URL = resolveBaseUrl();
 /** Base URL for vault API (same host/path as `apiClient`). */
 export const VAULT_API_BASE = BASE_URL;
 
+function resolveIbkrApiBase(): string {
+  const raw = import.meta.env.VITE_API_URL;
+  if (raw && raw.trim()) {
+    const cleaned = stripTrailingSlash(raw.trim());
+    if (cleaned.startsWith("/")) {
+      return `${cleaned}/api/v1/ibkr`.replace(/\/\/api\/v1\/ibkr$/, "/api/v1/ibkr");
+    }
+    return `${cleaned}/api/v1/ibkr`;
+  }
+  return import.meta.env.DEV ? "http://localhost:3000/api/v1/ibkr" : "/api/v1/ibkr";
+}
+
+export const IBKR_API_BASE = resolveIbkrApiBase();
+
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const prefix = `${name}=`;
@@ -108,6 +122,25 @@ function resolveDashboardContext(): { dashboardToken: string | null; fundId: str
   return { dashboardToken, fundId };
 }
 
+/** Raw `fetch` to IBKR routes with the same auth headers as vault APIs. */
+export async function ibkrAuthorizedFetch(path: string, init?: RequestInit): Promise<Response> {
+  const token = localStorage.getItem("jwt_token") ?? localStorage.getItem("accessToken");
+  const tenantId = localStorage.getItem("tenantId") ?? localStorage.getItem("tenant_id");
+  const dash = resolveDashboardContext();
+  const url = `${IBKR_API_BASE}${path}`;
+  return fetch(url, {
+    ...init,
+    credentials: "include",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(tenantId ? { "x-tenant-id": tenantId } : {}),
+      ...(dash.dashboardToken ? { "x-dashboard-token": dash.dashboardToken } : {}),
+      ...(dash.fundId ? { "x-fund-id": dash.fundId } : {}),
+      ...init?.headers
+    }
+  });
+}
+
 /** Raw `fetch` to vault routes with auth + tenant headers (use for non-JSON bodies). */
 export async function vaultAuthorizedFetch(path: string, init?: RequestInit): Promise<Response> {
   const token = localStorage.getItem("jwt_token") ?? localStorage.getItem("accessToken");
@@ -167,8 +200,19 @@ async function readErrorMessage(response: Response): Promise<string> {
   try {
     const parsed = JSON.parse(text) as Record<string, unknown>;
     const err = parsed.error ?? parsed.message;
+    const detail = parsed.details ?? parsed.reason;
     if (typeof err === "string" && err.trim()) {
+      const msg = typeof parsed.message === "string" && parsed.message.trim() ? parsed.message.trim() : null;
+      if (msg && msg !== err) {
+        return `${msg} (${err})`;
+      }
+      if (typeof detail === "string" && detail.trim()) {
+        return `${err}: ${detail}`;
+      }
       return err;
+    }
+    if (typeof parsed.message === "string" && parsed.message.trim()) {
+      return parsed.message.trim();
     }
   } catch {
     // not JSON — often Express HTML error page

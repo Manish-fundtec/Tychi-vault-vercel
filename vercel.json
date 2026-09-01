@@ -5,6 +5,10 @@
       "dest": "http://23.22.29.154:3000/api/vault/$1"
     },
     {
+      "src": "/api/v1/ibkr/(.*)",
+      "dest": "http://23.22.29.154:3000/api/v1/ibkr/$1"
+    },
+    {
       "handle": "filesystem"
     },
     {
