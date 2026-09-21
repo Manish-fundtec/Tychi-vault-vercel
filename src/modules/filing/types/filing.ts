@@ -136,6 +136,84 @@ export interface CorporateAction {
   updatedAt: string;
 }
 
+export interface Interest {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  sourceInterestId?: string | null;
+  interestDate: string;
+  currency: string;
+  amount: number;
+  direction: string;
+  description?: string | null;
+  source?: string | null;
+  status?: string | null;
+  rawFileId?: string | null;
+  rawRecordId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface Dividend {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  securityId?: string | null;
+  sourceDividendId?: string | null;
+  entryType: string;
+  dividendKind?: string | null;
+  dividendDate: string;
+  exDate?: string | null;
+  payDate?: string | null;
+  currency: string;
+  symbol?: string | null;
+  isin?: string | null;
+  quantity?: number | null;
+  amount: number;
+  netAmount?: number | null;
+  grossRate?: number | null;
+  grossAmount?: number | null;
+  tax?: number | null;
+  fee?: number | null;
+  direction: string;
+  code?: string | null;
+  description?: string | null;
+  source?: string | null;
+  status?: string | null;
+  rawFileId?: string | null;
+  rawRecordId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface RealizedPerformance {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  securityId?: string | null;
+  sourcePerformanceId?: string | null;
+  entryType: string;
+  reportDate: string;
+  assetCategory?: string | null;
+  symbol?: string | null;
+  costAdj?: number | null;
+  realizedStProfit?: number | null;
+  realizedStLoss?: number | null;
+  realizedLtProfit?: number | null;
+  realizedLtLoss?: number | null;
+  realizedTotal?: number | null;
+  unrealizedStProfit?: number | null;
+  unrealizedStLoss?: number | null;
+  unrealizedLtProfit?: number | null;
+  unrealizedLtLoss?: number | null;
+  unrealizedTotal?: number | null;
+  total?: number | null;
+  code?: string | null;
+  source?: string | null;
+  status?: string | null;
+  rawFileId?: string | null;
+  rawRecordId?: string | null;
+  createdAt?: string | null;
+}
+
 export interface Conversion {
   id: string;
   tenantId: string;

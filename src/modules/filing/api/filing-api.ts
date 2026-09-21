@@ -4,10 +4,13 @@ import type {
   CashTransaction,
   Conversion,
   CorporateAction,
+  Dividend,
   FxRate,
   InboxRawFileSummary,
+  Interest,
   Position,
   Price,
+  RealizedPerformance,
   SecurityBatchSummary,
   SecurityEquityRow,
   SecurityIdentifierRow,
@@ -31,6 +34,16 @@ function unwrapPaged(res: ListResponse | null) {
 
 function get(raw: Record<string, unknown>, camel: string, snake: string) {
   return (raw[camel] ?? raw[snake]) as unknown;
+}
+
+function asNum(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function asNum0(value: unknown): number {
+  return asNum(value) ?? 0;
 }
 
 function pickDetails(raw: Record<string, unknown>, knownKeys: string[]) {
@@ -196,6 +209,90 @@ function mapCorporateAction(raw: Record<string, unknown>): CorporateAction {
     rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
     createdAt: String(get(raw, "createdAt", "created_at") ?? ""),
     updatedAt: String(get(raw, "updatedAt", "updated_at") ?? "")
+  };
+}
+
+function mapInterest(raw: Record<string, unknown>): Interest {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    sourceInterestId: (get(raw, "sourceInterestId", "source_interest_id") as string | null | undefined) ?? null,
+    interestDate: String(get(raw, "interestDate", "interest_date") ?? ""),
+    currency: String(get(raw, "currency", "currency") ?? ""),
+    amount: asNum0(get(raw, "amount", "amount")),
+    direction: String(get(raw, "direction", "direction") ?? ""),
+    description: (get(raw, "description", "description") as string | null | undefined) ?? null,
+    source: (get(raw, "source", "source") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null,
+    rawFileId: (get(raw, "rawFileId", "raw_file_id") as string | null | undefined) ?? null,
+    rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
+    createdAt: (get(raw, "createdAt", "created_at") as string | null | undefined) ?? null
+  };
+}
+
+function mapDividend(raw: Record<string, unknown>): Dividend {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    securityId: (get(raw, "securityId", "security_id") as string | null | undefined) ?? null,
+    sourceDividendId: (get(raw, "sourceDividendId", "source_dividend_id") as string | null | undefined) ?? null,
+    entryType: String(get(raw, "entryType", "entry_type") ?? ""),
+    dividendKind: (get(raw, "dividendKind", "dividend_kind") as string | null | undefined) ?? null,
+    dividendDate: String(get(raw, "dividendDate", "dividend_date") ?? ""),
+    exDate: (get(raw, "exDate", "ex_date") as string | null | undefined) ?? null,
+    payDate: (get(raw, "payDate", "pay_date") as string | null | undefined) ?? null,
+    currency: String(get(raw, "currency", "currency") ?? ""),
+    symbol: (get(raw, "symbol", "symbol") as string | null | undefined) ?? null,
+    isin: (get(raw, "isin", "isin") as string | null | undefined) ?? null,
+    quantity: asNum(get(raw, "quantity", "quantity")),
+    amount: asNum0(get(raw, "amount", "amount")),
+    netAmount: asNum(get(raw, "netAmount", "net_amount")),
+    grossRate: asNum(get(raw, "grossRate", "gross_rate")),
+    grossAmount: asNum(get(raw, "grossAmount", "gross_amount")),
+    tax: asNum(get(raw, "tax", "tax")),
+    fee: asNum(get(raw, "fee", "fee")),
+    direction: String(get(raw, "direction", "direction") ?? ""),
+    code: (get(raw, "code", "code") as string | null | undefined) ?? null,
+    description: (get(raw, "description", "description") as string | null | undefined) ?? null,
+    source: (get(raw, "source", "source") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null,
+    rawFileId: (get(raw, "rawFileId", "raw_file_id") as string | null | undefined) ?? null,
+    rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
+    createdAt: (get(raw, "createdAt", "created_at") as string | null | undefined) ?? null
+  };
+}
+
+function mapRealizedPerformance(raw: Record<string, unknown>): RealizedPerformance {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    securityId: (get(raw, "securityId", "security_id") as string | null | undefined) ?? null,
+    sourcePerformanceId: (get(raw, "sourcePerformanceId", "source_performance_id") as string | null | undefined) ?? null,
+    entryType: String(get(raw, "entryType", "entry_type") ?? ""),
+    reportDate: String(get(raw, "reportDate", "report_date") ?? ""),
+    assetCategory: (get(raw, "assetCategory", "asset_category") as string | null | undefined) ?? null,
+    symbol: (get(raw, "symbol", "symbol") as string | null | undefined) ?? null,
+    costAdj: asNum(get(raw, "costAdj", "cost_adj")),
+    realizedStProfit: asNum(get(raw, "realizedStProfit", "realized_st_profit")),
+    realizedStLoss: asNum(get(raw, "realizedStLoss", "realized_st_loss")),
+    realizedLtProfit: asNum(get(raw, "realizedLtProfit", "realized_lt_profit")),
+    realizedLtLoss: asNum(get(raw, "realizedLtLoss", "realized_lt_loss")),
+    realizedTotal: asNum(get(raw, "realizedTotal", "realized_total")),
+    unrealizedStProfit: asNum(get(raw, "unrealizedStProfit", "unrealized_st_profit")),
+    unrealizedStLoss: asNum(get(raw, "unrealizedStLoss", "unrealized_st_loss")),
+    unrealizedLtProfit: asNum(get(raw, "unrealizedLtProfit", "unrealized_lt_profit")),
+    unrealizedLtLoss: asNum(get(raw, "unrealizedLtLoss", "unrealized_lt_loss")),
+    unrealizedTotal: asNum(get(raw, "unrealizedTotal", "unrealized_total")),
+    total: asNum(get(raw, "total", "total")),
+    code: (get(raw, "code", "code") as string | null | undefined) ?? null,
+    source: (get(raw, "source", "source") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null,
+    rawFileId: (get(raw, "rawFileId", "raw_file_id") as string | null | undefined) ?? null,
+    rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
+    createdAt: (get(raw, "createdAt", "created_at") as string | null | undefined) ?? null
   };
 }
 
@@ -568,6 +665,81 @@ export const filingApi = {
       return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapConversion(row)) };
     });
   },
+  getInterest: (
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; currency?: string; direction?: string; limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<PagedResult<Interest>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    if (params?.currency) query.set("currency", params.currency);
+    if (params?.direction) query.set("direction", params.direction);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/interest${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapInterest(row)) };
+    });
+  },
+  getDividends: (
+    params?: {
+      accountId?: string;
+      from?: string;
+      to?: string;
+      rawFileId?: string;
+      currency?: string;
+      entryType?: "CASH" | "ACCRUAL";
+      direction?: string;
+      limit?: number;
+      offset?: number;
+    },
+    signal?: AbortSignal
+  ): Promise<PagedResult<Dividend>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    if (params?.currency) query.set("currency", params.currency);
+    if (params?.entryType) query.set("entryType", params.entryType);
+    if (params?.direction) query.set("direction", params.direction);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/dividends${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapDividend(row)) };
+    });
+  },
+  getRealizedPerformance: (
+    params?: {
+      accountId?: string;
+      from?: string;
+      to?: string;
+      rawFileId?: string;
+      entryType?: "SYMBOL" | "FOREX" | "TOTAL" | "TOTAL_ALL";
+      limit?: number;
+      offset?: number;
+    },
+    signal?: AbortSignal
+  ): Promise<PagedResult<RealizedPerformance>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    if (params?.entryType) query.set("entryType", params.entryType);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/realized-performance${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapRealizedPerformance(row)) };
+    });
+  },
 
   getPositionBatches: (params?: { accountId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams();
@@ -651,6 +823,40 @@ export const filingApi = {
     const qs = query.toString();
     return apiClient
       .get<ListResponse>(`/filing-cabinet/conversion-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getInterestBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/interest-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getDividendBatches: (
+    params?: { accountId?: string; entryType?: "CASH" | "ACCRUAL"; limit?: number; offset?: number },
+    signal?: AbortSignal
+  ) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.entryType) query.set("entryType", params.entryType);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/dividend-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getRealizedPerformanceBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/realized-performance-batches${qs ? `?${qs}` : ""}`, signal)
       .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
   getPriceBatches: (params?: { securityId?: string; from?: string; to?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {

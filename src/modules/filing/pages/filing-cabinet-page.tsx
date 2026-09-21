@@ -18,10 +18,13 @@ import type {
   CashTransaction,
   Conversion,
   CorporateAction,
+  Dividend,
   FxRate,
   InboxRawFileSummary,
+  Interest,
   Position,
   Price,
+  RealizedPerformance,
   SecurityBatchSummary,
   SecurityMaster,
   Trade,
@@ -182,6 +185,115 @@ const CONVERSION_COLUMNS: DataTableColumn<Conversion>[] = [
   { id: "source", header: "Source", sortValue: (r) => r.source ?? "", accessor: (r) => r.source ?? "-" }
 ];
 
+const INTEREST_COLUMNS: DataTableColumn<Interest>[] = [
+  { id: "interestDate", header: "Date", sortValue: (r) => new Date(r.interestDate).getTime(), cell: (r) => formatDate(r.interestDate) },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" },
+  {
+    id: "amount",
+    header: "Amount",
+    align: "right",
+    sortValue: (r) => r.amount,
+    cell: (r) => (
+      <span className={r.amount >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatCurrency(r.amount, r.currency)}</span>
+    )
+  },
+  {
+    id: "direction",
+    header: "Direction",
+    sortValue: (r) => r.direction ?? "",
+    cell: (r) =>
+      r.direction ? (
+        <Badge className={r.direction.toLowerCase() === "inflow" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}>{r.direction}</Badge>
+      ) : (
+        "-"
+      )
+  },
+  { id: "description", header: "Description", sortValue: (r) => r.description ?? "", accessor: (r) => r.description ?? "-" },
+  { id: "source", header: "Source", sortValue: (r) => r.source ?? "", accessor: (r) => r.source ?? "-" },
+  { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" }
+];
+
+const DIVIDEND_COLUMNS: DataTableColumn<Dividend>[] = [
+  { id: "dividendDate", header: "Date", sortValue: (r) => new Date(r.dividendDate).getTime(), cell: (r) => formatDate(r.dividendDate) },
+  { id: "symbol", header: "Symbol", sortValue: (r) => r.symbol ?? "", cell: (r) => <span className="font-medium">{r.symbol ?? "-"}</span> },
+  { id: "dividendKind", header: "Kind", sortValue: (r) => r.dividendKind ?? "", accessor: (r) => r.dividendKind ?? "-" },
+  {
+    id: "amount",
+    header: "Amount",
+    align: "right",
+    sortValue: (r) => r.amount,
+    cell: (r) => (
+      <span className={r.amount >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatCurrency(r.amount, r.currency)}</span>
+    )
+  },
+  {
+    id: "netAmount",
+    header: "Net",
+    align: "right",
+    sortValue: (r) => r.netAmount ?? 0,
+    cell: (r) => <span className="tabular-nums">{r.netAmount == null ? "-" : formatNumber(r.netAmount)}</span>
+  },
+  {
+    id: "tax",
+    header: "Tax",
+    align: "right",
+    sortValue: (r) => r.tax ?? 0,
+    cell: (r) => <span className="tabular-nums">{r.tax == null ? "-" : formatNumber(r.tax)}</span>
+  },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" },
+  {
+    id: "direction",
+    header: "Direction",
+    sortValue: (r) => r.direction ?? "",
+    accessor: (r) => r.direction ?? "-"
+  },
+  { id: "description", header: "Description", sortValue: (r) => r.description ?? "", accessor: (r) => r.description ?? "-" }
+];
+
+const RPNL_COLUMNS: DataTableColumn<RealizedPerformance>[] = [
+  { id: "reportDate", header: "Date", sortValue: (r) => new Date(r.reportDate).getTime(), cell: (r) => formatDate(r.reportDate) },
+  { id: "entryType", header: "Type", sortValue: (r) => r.entryType ?? "", cell: (r) => (r.entryType ? <Badge className="bg-slate-100 text-slate-800">{r.entryType}</Badge> : "-") },
+  { id: "assetCategory", header: "Category", sortValue: (r) => r.assetCategory ?? "", accessor: (r) => r.assetCategory ?? "-" },
+  { id: "symbol", header: "Symbol", sortValue: (r) => r.symbol ?? "", cell: (r) => <span className="font-medium">{r.symbol ?? "-"}</span> },
+  {
+    id: "realizedTotal",
+    header: "Realized",
+    align: "right",
+    sortValue: (r) => r.realizedTotal ?? 0,
+    cell: (r) =>
+      r.realizedTotal == null ? (
+        "-"
+      ) : (
+        <span className={r.realizedTotal >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatNumber(r.realizedTotal)}</span>
+      )
+  },
+  {
+    id: "unrealizedTotal",
+    header: "Unrealized",
+    align: "right",
+    sortValue: (r) => r.unrealizedTotal ?? 0,
+    cell: (r) =>
+      r.unrealizedTotal == null ? (
+        "-"
+      ) : (
+        <span className={r.unrealizedTotal >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatNumber(r.unrealizedTotal)}</span>
+      )
+  },
+  {
+    id: "total",
+    header: "Total",
+    align: "right",
+    sortValue: (r) => r.total ?? 0,
+    cell: (r) =>
+      r.total == null ? (
+        "-"
+      ) : (
+        <span className={r.total >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatNumber(r.total)}</span>
+      )
+  },
+  { id: "code", header: "Code", sortValue: (r) => r.code ?? "", accessor: (r) => r.code ?? "-" }
+];
+
 export function FilingCabinetPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -210,6 +322,10 @@ export function FilingCabinetPage() {
     fxRateBatches,
     corporateActionBatches,
     conversionBatches,
+    interestBatches,
+    dividendBatches,
+    dividendAccrualBatches,
+    realizedPerformanceBatches,
     loading,
     error,
     warnings
@@ -230,7 +346,19 @@ export function FilingCabinetPage() {
   const [rawTradesError, setRawTradesError] = useState<string | null>(null);
   const rawTradesAbortRef = useRef<AbortController | null>(null);
 
-  type RawKind = "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions";
+  type RawKind =
+    | "positions"
+    | "transfers"
+    | "cash"
+    | "cashBalances"
+    | "prices"
+    | "fxRates"
+    | "corporateActions"
+    | "conversions"
+    | "interest"
+    | "dividends"
+    | "accruals"
+    | "rpnl";
   const [rawOpen, setRawOpen] = useState(false);
   const [rawKind, setRawKind] = useState<RawKind>("positions");
   const [rawFile, setRawFile] = useState<InboxRawFileSummary | null>(null);
@@ -338,9 +466,40 @@ export function FilingCabinetPage() {
       conversions: conversionBatches.filter((r) => {
         const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
         return d ? inRange(d) : true;
+      }),
+      interest: interestBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      dividends: dividendBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      accruals: dividendAccrualBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
+      rpnl: realizedPerformanceBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
       })
     };
-  }, [fromDate, toDate, positionBatches, transferBatches, cashTransactionBatches, cashBalanceBatches, priceBatches, fxRateBatches, corporateActionBatches, conversionBatches]);
+  }, [
+    fromDate,
+    toDate,
+    positionBatches,
+    transferBatches,
+    cashTransactionBatches,
+    cashBalanceBatches,
+    priceBatches,
+    fxRateBatches,
+    corporateActionBatches,
+    conversionBatches,
+    interestBatches,
+    dividendBatches,
+    dividendAccrualBatches,
+    realizedPerformanceBatches
+  ]);
 
   const openRawFile = async (kind: RawKind, file: InboxRawFileSummary) => {
     // Ensure only one viewer modal is open at a time.
@@ -385,6 +544,40 @@ export function FilingCabinetPage() {
         const res = await filingApi.getConversions({
           accountId: accountId.trim() || undefined,
           pair: conversionPair.trim().toUpperCase() || undefined,
+          rawFileId: file.rawFileId,
+          limit: 500,
+          offset: 0
+        }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "interest") {
+        const res = await filingApi.getInterest({
+          accountId: accountId.trim() || undefined,
+          rawFileId: file.rawFileId,
+          limit: 500,
+          offset: 0
+        }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "dividends") {
+        const res = await filingApi.getDividends({
+          accountId: accountId.trim() || undefined,
+          rawFileId: file.rawFileId,
+          entryType: "CASH",
+          limit: 500,
+          offset: 0
+        }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "accruals") {
+        const res = await filingApi.getDividends({
+          accountId: accountId.trim() || undefined,
+          rawFileId: file.rawFileId,
+          entryType: "ACCRUAL",
+          limit: 500,
+          offset: 0
+        }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "rpnl") {
+        const res = await filingApi.getRealizedPerformance({
+          accountId: accountId.trim() || undefined,
           rawFileId: file.rawFileId,
           limit: 500,
           offset: 0
@@ -436,6 +629,10 @@ export function FilingCabinetPage() {
     if (t === "fxRates") return "fxRates";
     if (t === "corporateActions") return "corporateActions";
     if (t === "conversions") return "conversions";
+    if (t === "interest") return "interest";
+    if (t === "dividends") return "dividends";
+    if (t === "accruals") return "accruals";
+    if (t === "rpnl") return "rpnl";
     return null;
   };
 
@@ -721,7 +918,7 @@ export function FilingCabinetPage() {
             setTab(v);
           }}
         >
-          <TabsList>
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
             <TabsTrigger value="trades">Trades</TabsTrigger>
             <TabsTrigger value="securities">Securities</TabsTrigger>
             <TabsTrigger value="positions">Positions</TabsTrigger>
@@ -732,6 +929,10 @@ export function FilingCabinetPage() {
             <TabsTrigger value="fxRates">FX Rates</TabsTrigger>
             <TabsTrigger value="corporateActions">Corporate Actions</TabsTrigger>
             <TabsTrigger value="conversions">Conversions</TabsTrigger>
+            <TabsTrigger value="interest">Interest</TabsTrigger>
+            <TabsTrigger value="dividends">Dividends</TabsTrigger>
+            <TabsTrigger value="accruals">Accruals</TabsTrigger>
+            <TabsTrigger value="rpnl">Realized P/L</TabsTrigger>
           </TabsList>
 
           <TabsContent value="trades">
@@ -865,6 +1066,58 @@ export function FilingCabinetPage() {
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("conversions", row)}
                 emptyTitle="No conversion batches"
+                emptyDescription="Try adjusting the date range or account filter."
+              />
+            </Section>
+          </TabsContent>
+
+          <TabsContent value="interest">
+            <Section title="Interest batches" description="One row per raw file. Click a row to view only that file's interest records.">
+              <DataTable
+                data={batchFiltered.interest}
+                columns={batchFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("interest", row)}
+                emptyTitle="No interest batches"
+                emptyDescription="Try adjusting the date range or account filter."
+              />
+            </Section>
+          </TabsContent>
+
+          <TabsContent value="dividends">
+            <Section title="Dividend batches" description="One row per raw file. Click a row to view cash dividends linked to that file.">
+              <DataTable
+                data={batchFiltered.dividends}
+                columns={batchFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("dividends", row)}
+                emptyTitle="No dividend batches"
+                emptyDescription="Try adjusting the date range or account filter."
+              />
+            </Section>
+          </TabsContent>
+
+          <TabsContent value="accruals">
+            <Section title="Dividend accrual batches" description="One row per raw file. Click a row to view dividend accruals linked to that file.">
+              <DataTable
+                data={batchFiltered.accruals}
+                columns={batchFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("accruals", row)}
+                emptyTitle="No dividend accrual batches"
+                emptyDescription="Try adjusting the date range or account filter."
+              />
+            </Section>
+          </TabsContent>
+
+          <TabsContent value="rpnl">
+            <Section title="Realized P/L batches" description="One row per raw file. Click a row to view realized and unrealized performance linked to that file.">
+              <DataTable
+                data={batchFiltered.rpnl}
+                columns={batchFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("rpnl", row)}
+                emptyTitle="No realized P/L batches"
                 emptyDescription="Try adjusting the date range or account filter."
               />
             </Section>
@@ -1194,7 +1447,7 @@ function RawFileRecordsModal({
   onClose
 }: {
   open: boolean;
-  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions";
+  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions" | "interest" | "dividends" | "accruals" | "rpnl";
   file: InboxRawFileSummary | null;
   loading: boolean;
   error: string | null;
@@ -1208,34 +1461,48 @@ function RawFileRecordsModal({
       ? "Positions"
       : kind === "transfers"
         ? "Transfers"
-      : kind === "cash"
-        ? "Cash transactions"
-        : kind === "cashBalances"
-          ? "Cash balances"
-          : kind === "prices"
-            ? "Prices"
-            : kind === "fxRates"
-              ? "FX rates"
-              : kind === "conversions"
-                ? "Conversions"
-                : "Corporate actions";
+        : kind === "cash"
+          ? "Cash transactions"
+          : kind === "cashBalances"
+            ? "Cash balances"
+            : kind === "prices"
+              ? "Prices"
+              : kind === "fxRates"
+                ? "FX rates"
+                : kind === "conversions"
+                  ? "Conversions"
+                  : kind === "interest"
+                    ? "Interest"
+                    : kind === "dividends"
+                      ? "Dividends"
+                      : kind === "accruals"
+                        ? "Dividend accruals"
+                        : kind === "rpnl"
+                          ? "Realized P/L"
+                          : "Corporate actions";
 
   const columns =
     kind === "positions"
       ? (POSITION_COLUMNS as DataTableColumn<unknown>[])
       : kind === "transfers"
         ? (TRANSFER_COLUMNS as DataTableColumn<unknown>[])
-      : kind === "cash"
-        ? (CASH_TXN_COLUMNS as DataTableColumn<unknown>[])
-        : kind === "cashBalances"
-          ? (CASH_BALANCE_COLUMNS as DataTableColumn<unknown>[])
-          : kind === "prices"
-            ? (PRICE_COLUMNS as DataTableColumn<unknown>[])
-            : kind === "fxRates"
-              ? (FX_COLUMNS as DataTableColumn<unknown>[])
-              : kind === "conversions"
-                ? (CONVERSION_COLUMNS as DataTableColumn<unknown>[])
-                : (CORP_ACTION_COLUMNS as DataTableColumn<unknown>[]);
+        : kind === "cash"
+          ? (CASH_TXN_COLUMNS as DataTableColumn<unknown>[])
+          : kind === "cashBalances"
+            ? (CASH_BALANCE_COLUMNS as DataTableColumn<unknown>[])
+            : kind === "prices"
+              ? (PRICE_COLUMNS as DataTableColumn<unknown>[])
+              : kind === "fxRates"
+                ? (FX_COLUMNS as DataTableColumn<unknown>[])
+                : kind === "conversions"
+                  ? (CONVERSION_COLUMNS as DataTableColumn<unknown>[])
+                  : kind === "interest"
+                    ? (INTEREST_COLUMNS as DataTableColumn<unknown>[])
+                    : kind === "dividends" || kind === "accruals"
+                      ? (DIVIDEND_COLUMNS as DataTableColumn<unknown>[])
+                      : kind === "rpnl"
+                        ? (RPNL_COLUMNS as DataTableColumn<unknown>[])
+                        : (CORP_ACTION_COLUMNS as DataTableColumn<unknown>[]);
 
   return (
     <Drawer
