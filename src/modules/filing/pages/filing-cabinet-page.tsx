@@ -250,6 +250,71 @@ const DIVIDEND_COLUMNS: DataTableColumn<Dividend>[] = [
   { id: "description", header: "Description", sortValue: (r) => r.description ?? "", accessor: (r) => r.description ?? "-" }
 ];
 
+const PAY_DATE_COLUMNS: DataTableColumn<Dividend>[] = [
+  {
+    id: "payDate",
+    header: "Pay Date",
+    sortValue: (r) => (r.payDate ? new Date(r.payDate).getTime() : 0),
+    cell: (r) => <span className="font-medium">{r.payDate ? formatDate(r.payDate) : "-"}</span>
+  },
+  {
+    id: "exDate",
+    header: "Ex Date",
+    sortValue: (r) => (r.exDate ? new Date(r.exDate).getTime() : 0),
+    cell: (r) => (r.exDate ? formatDate(r.exDate) : "-")
+  },
+  { id: "dividendDate", header: "Date", sortValue: (r) => new Date(r.dividendDate).getTime(), cell: (r) => formatDate(r.dividendDate) },
+  { id: "symbol", header: "Symbol", sortValue: (r) => r.symbol ?? "", cell: (r) => <span className="font-medium">{r.symbol ?? "-"}</span> },
+  {
+    id: "quantity",
+    header: "Quantity",
+    align: "right",
+    sortValue: (r) => r.quantity ?? 0,
+    cell: (r) => <span className="tabular-nums">{r.quantity == null ? "-" : formatNumber(r.quantity)}</span>
+  },
+  {
+    id: "tax",
+    header: "Tax",
+    align: "right",
+    sortValue: (r) => r.tax ?? 0,
+    cell: (r) => <span className="tabular-nums">{r.tax == null ? "-" : formatNumber(r.tax)}</span>
+  },
+  {
+    id: "fee",
+    header: "Fee",
+    align: "right",
+    sortValue: (r) => r.fee ?? 0,
+    cell: (r) => <span className="tabular-nums">{r.fee == null ? "-" : formatNumber(r.fee)}</span>
+  },
+  {
+    id: "grossRate",
+    header: "Gross Rate",
+    align: "right",
+    sortValue: (r) => r.grossRate ?? 0,
+    cell: (r) => <span className="tabular-nums">{r.grossRate == null ? "-" : formatNumber(r.grossRate)}</span>
+  },
+  {
+    id: "grossAmount",
+    header: "Gross Amt",
+    align: "right",
+    sortValue: (r) => r.grossAmount ?? 0,
+    cell: (r) => <span className="tabular-nums">{r.grossAmount == null ? "-" : formatNumber(r.grossAmount)}</span>
+  },
+  {
+    id: "netAmount",
+    header: "Net Amt",
+    align: "right",
+    sortValue: (r) => r.netAmount ?? 0,
+    cell: (r) => (
+      <span className={r.netAmount != null && r.netAmount >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>
+        {r.netAmount == null ? "-" : formatNumber(r.netAmount)}
+      </span>
+    )
+  },
+  { id: "code", header: "Code", sortValue: (r) => r.code ?? "", accessor: (r) => r.code ?? "-" },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" }
+];
+
 const RPNL_COLUMNS: DataTableColumn<RealizedPerformance>[] = [
   { id: "reportDate", header: "Date", sortValue: (r) => new Date(r.reportDate).getTime(), cell: (r) => formatDate(r.reportDate) },
   { id: "entryType", header: "Type", sortValue: (r) => r.entryType ?? "", cell: (r) => (r.entryType ? <Badge className="bg-slate-100 text-slate-800">{r.entryType}</Badge> : "-") },
@@ -325,6 +390,7 @@ export function FilingCabinetPage() {
     interestBatches,
     dividendBatches,
     dividendAccrualBatches,
+    payDateBatches,
     realizedPerformanceBatches,
     loading,
     error,
@@ -358,6 +424,7 @@ export function FilingCabinetPage() {
     | "interest"
     | "dividends"
     | "accruals"
+    | "payDates"
     | "rpnl";
   const [rawOpen, setRawOpen] = useState(false);
   const [rawKind, setRawKind] = useState<RawKind>("positions");
@@ -479,6 +546,10 @@ export function FilingCabinetPage() {
         const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
         return d ? inRange(d) : true;
       }),
+      payDates: payDateBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
       rpnl: realizedPerformanceBatches.filter((r) => {
         const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
         return d ? inRange(d) : true;
@@ -498,6 +569,7 @@ export function FilingCabinetPage() {
     interestBatches,
     dividendBatches,
     dividendAccrualBatches,
+    payDateBatches,
     realizedPerformanceBatches
   ]);
 
@@ -575,6 +647,16 @@ export function FilingCabinetPage() {
           offset: 0
         }, controller.signal);
         setRawRows(res.items);
+      } else if (kind === "payDates") {
+        const res = await filingApi.getDividends({
+          accountId: accountId.trim() || undefined,
+          rawFileId: file.rawFileId,
+          entryType: "ACCRUAL",
+          requirePayDate: true,
+          limit: 500,
+          offset: 0
+        }, controller.signal);
+        setRawRows(res.items);
       } else if (kind === "rpnl") {
         const res = await filingApi.getRealizedPerformance({
           accountId: accountId.trim() || undefined,
@@ -632,6 +714,7 @@ export function FilingCabinetPage() {
     if (t === "interest") return "interest";
     if (t === "dividends") return "dividends";
     if (t === "accruals") return "accruals";
+    if (t === "payDates") return "payDates";
     if (t === "rpnl") return "rpnl";
     return null;
   };
@@ -932,6 +1015,7 @@ export function FilingCabinetPage() {
             <TabsTrigger value="interest">Interest</TabsTrigger>
             <TabsTrigger value="dividends">Dividends</TabsTrigger>
             <TabsTrigger value="accruals">Accruals</TabsTrigger>
+            <TabsTrigger value="payDates">Pay Date</TabsTrigger>
             <TabsTrigger value="rpnl">Realized P/L</TabsTrigger>
           </TabsList>
 
@@ -1110,15 +1194,34 @@ export function FilingCabinetPage() {
             </Section>
           </TabsContent>
 
+          <TabsContent value="payDates">
+            <Section
+              title="Pay Date batches"
+              description="IB Change in Dividend Accruals with Pay Date. One row per raw file — used for dividend payable dates on NAV sheet 17."
+            >
+              <DataTable
+                data={batchFiltered.payDates}
+                columns={batchFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("payDates", row)}
+                emptyTitle="No pay-date batches"
+                emptyDescription="Upload or reparse an IB activity file that includes Change in Dividend Accruals."
+              />
+            </Section>
+          </TabsContent>
+
           <TabsContent value="rpnl">
-            <Section title="Realized P/L batches" description="One row per raw file. Click a row to view realized and unrealized performance linked to that file.">
+            <Section
+              title="Realized P/L batches"
+              description="One row per raw file. Click a row to view realized and unrealized performance linked to that file. Includes older uploads that only have trade-level Realized P/L."
+            >
               <DataTable
                 data={batchFiltered.rpnl}
                 columns={batchFileColumns}
                 getRowId={(r) => r.rawFileId}
                 onRowClick={(row) => void openRawFile("rpnl", row)}
                 emptyTitle="No realized P/L batches"
-                emptyDescription="Try adjusting the date range or account filter."
+                emptyDescription="No Realized & Unrealized Performance section or trade-level Realized P/L found for this fund yet. Re-upload or reparse older activity files if needed."
               />
             </Section>
           </TabsContent>
@@ -1447,7 +1550,7 @@ function RawFileRecordsModal({
   onClose
 }: {
   open: boolean;
-  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions" | "interest" | "dividends" | "accruals" | "rpnl";
+  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions" | "interest" | "dividends" | "accruals" | "payDates" | "rpnl";
   file: InboxRawFileSummary | null;
   loading: boolean;
   error: string | null;
@@ -1477,9 +1580,11 @@ function RawFileRecordsModal({
                       ? "Dividends"
                       : kind === "accruals"
                         ? "Dividend accruals"
-                        : kind === "rpnl"
-                          ? "Realized P/L"
-                          : "Corporate actions";
+                        : kind === "payDates"
+                          ? "Pay dates"
+                          : kind === "rpnl"
+                            ? "Realized P/L"
+                            : "Corporate actions";
 
   const columns =
     kind === "positions"
@@ -1498,11 +1603,13 @@ function RawFileRecordsModal({
                   ? (CONVERSION_COLUMNS as DataTableColumn<unknown>[])
                   : kind === "interest"
                     ? (INTEREST_COLUMNS as DataTableColumn<unknown>[])
-                    : kind === "dividends" || kind === "accruals"
-                      ? (DIVIDEND_COLUMNS as DataTableColumn<unknown>[])
-                      : kind === "rpnl"
-                        ? (RPNL_COLUMNS as DataTableColumn<unknown>[])
-                        : (CORP_ACTION_COLUMNS as DataTableColumn<unknown>[]);
+                    : kind === "payDates"
+                      ? (PAY_DATE_COLUMNS as DataTableColumn<unknown>[])
+                      : kind === "dividends" || kind === "accruals"
+                        ? (DIVIDEND_COLUMNS as DataTableColumn<unknown>[])
+                        : kind === "rpnl"
+                          ? (RPNL_COLUMNS as DataTableColumn<unknown>[])
+                          : (CORP_ACTION_COLUMNS as DataTableColumn<unknown>[]);
 
   return (
     <Drawer

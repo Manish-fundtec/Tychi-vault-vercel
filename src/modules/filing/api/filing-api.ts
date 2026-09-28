@@ -693,6 +693,7 @@ export const filingApi = {
       currency?: string;
       entryType?: "CASH" | "ACCRUAL";
       direction?: string;
+      requirePayDate?: boolean;
       limit?: number;
       offset?: number;
     },
@@ -706,6 +707,7 @@ export const filingApi = {
     if (params?.currency) query.set("currency", params.currency);
     if (params?.entryType) query.set("entryType", params.entryType);
     if (params?.direction) query.set("direction", params.direction);
+    if (params?.requirePayDate) query.set("requirePayDate", "true");
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();
@@ -726,11 +728,24 @@ export const filingApi = {
     },
     signal?: AbortSignal
   ): Promise<PagedResult<RealizedPerformance>> => {
+    // Prefer by-file endpoint so older uploads can fall back to parsed / trade RPNL.
+    if (params?.rawFileId) {
+      const query = new URLSearchParams();
+      if (params?.entryType) query.set("entryType", params.entryType);
+      query.set("limit", String(params?.limit ?? 100));
+      query.set("offset", String(params?.offset ?? 0));
+      const qs = query.toString();
+      return apiClient
+        .get<ListResponse>(`/filing-cabinet/files/${encodeURIComponent(params.rawFileId)}/realized-performance${qs ? `?${qs}` : ""}`, signal)
+        .then((r) => {
+          const u = unwrapPaged(r);
+          return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapRealizedPerformance(row)) };
+        });
+    }
     const query = new URLSearchParams();
     if (params?.accountId) query.set("accountId", params.accountId);
     if (params?.from) query.set("from", params.from);
     if (params?.to) query.set("to", params.to);
-    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
     if (params?.entryType) query.set("entryType", params.entryType);
     query.set("limit", String(params?.limit ?? 100));
     query.set("offset", String(params?.offset ?? 0));
@@ -836,12 +851,19 @@ export const filingApi = {
       .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
   getDividendBatches: (
-    params?: { accountId?: string; entryType?: "CASH" | "ACCRUAL"; limit?: number; offset?: number },
+    params?: {
+      accountId?: string;
+      entryType?: "CASH" | "ACCRUAL";
+      requirePayDate?: boolean;
+      limit?: number;
+      offset?: number;
+    },
     signal?: AbortSignal
   ) => {
     const query = new URLSearchParams();
     if (params?.accountId) query.set("accountId", params.accountId);
     if (params?.entryType) query.set("entryType", params.entryType);
+    if (params?.requirePayDate) query.set("requirePayDate", "true");
     query.set("limit", String(params?.limit ?? 50));
     query.set("offset", String(params?.offset ?? 0));
     const qs = query.toString();

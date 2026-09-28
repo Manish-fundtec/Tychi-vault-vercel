@@ -48,6 +48,7 @@ export function useFilingData(filters?: {
   const [interestBatches, setInterestBatches] = useState<InboxRawFileSummary[]>([]);
   const [dividendBatches, setDividendBatches] = useState<InboxRawFileSummary[]>([]);
   const [dividendAccrualBatches, setDividendAccrualBatches] = useState<InboxRawFileSummary[]>([]);
+  const [payDateBatches, setPayDateBatches] = useState<InboxRawFileSummary[]>([]);
   const [realizedPerformanceBatches, setRealizedPerformanceBatches] = useState<InboxRawFileSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +117,10 @@ export function useFilingData(filters?: {
           filingApi.getInterestBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getDividendBatches({ accountId: filters?.accountId, entryType: "CASH", limit: 50, offset: 0 }, controller.signal),
           filingApi.getDividendBatches({ accountId: filters?.accountId, entryType: "ACCRUAL", limit: 50, offset: 0 }, controller.signal),
+          filingApi.getDividendBatches(
+            { accountId: filters?.accountId, entryType: "ACCRUAL", requirePayDate: true, limit: 50, offset: 0 },
+            controller.signal
+          ),
           filingApi.getRealizedPerformanceBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal)
         ]);
 
@@ -153,7 +158,8 @@ export function useFilingData(filters?: {
         setIfOk(results[20] as PromiseSettledResult<InboxRawFileSummary[]>, setInterestBatches, "Interest batches", []);
         setIfOk(results[21] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendBatches, "Dividend batches", []);
         setIfOk(results[22] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendAccrualBatches, "Dividend accrual batches", []);
-        setIfOk(results[23] as PromiseSettledResult<InboxRawFileSummary[]>, setRealizedPerformanceBatches, "Realized P/L batches", []);
+        setIfOk(results[23] as PromiseSettledResult<InboxRawFileSummary[]>, setPayDateBatches, "Pay date batches", []);
+        setIfOk(results[24] as PromiseSettledResult<InboxRawFileSummary[]>, setRealizedPerformanceBatches, "Realized P/L batches", []);
 
         setWarnings(nextWarnings);
 
@@ -205,6 +211,7 @@ export function useFilingData(filters?: {
       interestBatches,
       dividendBatches,
       dividendAccrualBatches,
+      payDateBatches,
       realizedPerformanceBatches,
       loading,
       error,
@@ -234,6 +241,7 @@ export function useFilingData(filters?: {
       interestBatches,
       dividendBatches,
       dividendAccrualBatches,
+      payDateBatches,
       realizedPerformanceBatches,
       loading,
       error,
