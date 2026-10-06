@@ -17,6 +17,7 @@ import type {
   SecurityMaster,
   SecurityOptionRow,
   Trade,
+  TradeConfirmation,
   Transfer
 } from "../types/filing";
 
@@ -209,6 +210,31 @@ function mapCorporateAction(raw: Record<string, unknown>): CorporateAction {
     rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
     createdAt: String(get(raw, "createdAt", "created_at") ?? ""),
     updatedAt: String(get(raw, "updatedAt", "updated_at") ?? "")
+  };
+}
+
+function mapTradeConfirmation(raw: Record<string, unknown>): TradeConfirmation {
+  const tradeTime = get(raw, "tradeTime", "trade_time");
+  return {
+    id: String(get(raw, "id", "id")),
+    symbol: String(get(raw, "symbol", "symbol") ?? ""),
+    tradeType: String(get(raw, "tradeType", "trade_type") ?? ""),
+    tradeDate: String(get(raw, "tradeDate", "trade_date") ?? ""),
+    tradeTime: tradeTime == null ? null : String(tradeTime),
+    settleDate: (get(raw, "settleDate", "settle_date") as string | null | undefined) ?? null,
+    exchange: (get(raw, "exchange", "exchange") as string | null | undefined) ?? null,
+    quantity: asNum0(get(raw, "quantity", "quantity")),
+    price: asNum(get(raw, "price", "price")),
+    proceeds: asNum(get(raw, "proceeds", "proceeds")),
+    commission: asNum(get(raw, "commission", "commission")),
+    fee: asNum(get(raw, "fee", "fee")),
+    orderType: (get(raw, "orderType", "order_type") as string | null | undefined) ?? null,
+    code: (get(raw, "code", "code") as string | null | undefined) ?? null,
+    currency: (get(raw, "currency", "currency") as string | null | undefined) ?? null,
+    brokerAccountId: (get(raw, "brokerAccountId", "broker_account_id") as string | null | undefined) ?? null,
+    assetCategory: (get(raw, "assetCategory", "asset_category") as string | null | undefined) ?? null,
+    rowLevel: (get(raw, "rowLevel", "row_level") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null
   };
 }
 
@@ -824,6 +850,28 @@ export const filingApi = {
     return apiClient
       .get<ListResponse>(`/filing-cabinet/conversion-batches${qs ? `?${qs}` : ""}`, signal)
       .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getTradeConfirmationBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/trade-confirmation-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getTradeConfirmationsForRawFile: (
+    rawFileId: string,
+    params?: { limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<TradeConfirmation[]> => {
+    const query = new URLSearchParams();
+    query.set("limit", String(params?.limit ?? 500));
+    query.set("offset", String(params?.offset ?? 0));
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/files/${encodeURIComponent(rawFileId)}/trade-confirmations?${query.toString()}`, signal)
+      .then((r) => unwrap(r).map((row) => mapTradeConfirmation(row)));
   },
   getInterestBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams();
