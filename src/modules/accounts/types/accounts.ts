@@ -1,5 +1,5 @@
 export type AccountType = "BROKER" | "BANK" | "CUSTODIAN";
-export type SourceSystem = "IBKR" | "DBS" | "MANUAL" | "FRANKFURTER";
+export type SourceSystem = "IBKR" | "DBS" | "MANUAL" | "FRANKFURTER" | "UNION_BANK" | "CORPAY";
 export type IngestionSchedule = "DAILY_EOD" | "WEEKLY" | "MONTHLY" | "ON_DEMAND";
 export type AccountStatus = "ACTIVE" | "INACTIVE" | "SETUP";
 
