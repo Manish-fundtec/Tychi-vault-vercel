@@ -12,7 +12,7 @@ import type {
 } from "../types/accounts";
 
 const accountTypes: AccountType[] = ["BROKER", "BANK", "CUSTODIAN"];
-const sourceSystems: SourceSystem[] = ["IBKR", "DBS", "MANUAL", "FRANKFURTER"];
+const sourceSystems: SourceSystem[] = ["IBKR", "DBS", "MANUAL", "FRANKFURTER", "UNION_BANK", "CORPAY"];
 const ingestionSchedules: IngestionSchedule[] = ["DAILY_EOD", "WEEKLY", "MONTHLY", "ON_DEMAND"];
 const statuses: AccountStatus[] = ["SETUP", "ACTIVE", "INACTIVE"];
 

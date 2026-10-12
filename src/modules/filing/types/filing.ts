@@ -136,6 +136,28 @@ export interface CorporateAction {
   updatedAt: string;
 }
 
+export interface TradeConfirmation {
+  id: string;
+  symbol: string;
+  tradeType: string;
+  tradeDate: string;
+  tradeTime?: string | null;
+  settleDate?: string | null;
+  exchange?: string | null;
+  quantity: number;
+  price?: number | null;
+  proceeds?: number | null;
+  commission?: number | null;
+  fee?: number | null;
+  orderType?: string | null;
+  code?: string | null;
+  currency?: string | null;
+  brokerAccountId?: string | null;
+  assetCategory?: string | null;
+  rowLevel?: string | null;
+  status?: string | null;
+}
+
 export interface Interest {
   id: string;
   tenantId: string;
@@ -146,6 +168,42 @@ export interface Interest {
   amount: number;
   direction: string;
   description?: string | null;
+  source?: string | null;
+  status?: string | null;
+  rawFileId?: string | null;
+  rawRecordId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface Fee {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  sourceFeeId?: string | null;
+  entryDate: string;
+  currency: string;
+  amount: number;
+  direction: string;
+  description?: string | null;
+  code?: string | null;
+  source?: string | null;
+  status?: string | null;
+  rawFileId?: string | null;
+  rawRecordId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface WithholdingTax {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  sourceWithholdingId?: string | null;
+  entryDate: string;
+  currency: string;
+  amount: number;
+  direction: string;
+  description?: string | null;
+  code?: string | null;
   source?: string | null;
   status?: string | null;
   rawFileId?: string | null;

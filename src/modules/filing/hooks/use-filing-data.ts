@@ -45,7 +45,10 @@ export function useFilingData(filters?: {
   const [corporateActionBatches, setCorporateActionBatches] = useState<InboxRawFileSummary[]>([]);
   const [conversionBatches, setConversionBatches] = useState<InboxRawFileSummary[]>([]);
   const [priceBatches, setPriceBatches] = useState<InboxRawFileSummary[]>([]);
+  const [tradeConfirmationBatches, setTradeConfirmationBatches] = useState<InboxRawFileSummary[]>([]);
   const [interestBatches, setInterestBatches] = useState<InboxRawFileSummary[]>([]);
+  const [feesBatches, setFeesBatches] = useState<InboxRawFileSummary[]>([]);
+  const [withholdingTaxBatches, setWithholdingTaxBatches] = useState<InboxRawFileSummary[]>([]);
   const [dividendBatches, setDividendBatches] = useState<InboxRawFileSummary[]>([]);
   const [dividendAccrualBatches, setDividendAccrualBatches] = useState<InboxRawFileSummary[]>([]);
   const [realizedPerformanceBatches, setRealizedPerformanceBatches] = useState<InboxRawFileSummary[]>([]);
@@ -113,7 +116,10 @@ export function useFilingData(filters?: {
           filingApi.getCorporateActionBatches({ accountId: filters?.accountId, securityId: filters?.securityId, from: filters?.from, to: filters?.to, limit: 50, offset: 0 }, controller.signal),
           safeConversions,
           filingApi.getConversionBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getTradeConfirmationBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getInterestBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getFeesBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getWithholdingTaxBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getDividendBatches({ accountId: filters?.accountId, entryType: "CASH", limit: 50, offset: 0 }, controller.signal),
           filingApi.getDividendBatches({ accountId: filters?.accountId, entryType: "ACCRUAL", limit: 50, offset: 0 }, controller.signal),
           filingApi.getRealizedPerformanceBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal)
@@ -150,10 +156,13 @@ export function useFilingData(filters?: {
         setIfOk(results[17] as PromiseSettledResult<InboxRawFileSummary[]>, setCorporateActionBatches, "Corporate action batches", []);
         setIfOk(results[18] as PromiseSettledResult<{ items: Conversion[] }>, (v) => setConversions(v.items), "Conversions", { items: [] });
         setIfOk(results[19] as PromiseSettledResult<InboxRawFileSummary[]>, setConversionBatches, "Conversion batches", []);
-        setIfOk(results[20] as PromiseSettledResult<InboxRawFileSummary[]>, setInterestBatches, "Interest batches", []);
-        setIfOk(results[21] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendBatches, "Dividend batches", []);
-        setIfOk(results[22] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendAccrualBatches, "Dividend accrual batches", []);
-        setIfOk(results[23] as PromiseSettledResult<InboxRawFileSummary[]>, setRealizedPerformanceBatches, "Realized P/L batches", []);
+        setIfOk(results[20] as PromiseSettledResult<InboxRawFileSummary[]>, setTradeConfirmationBatches, "Trade confirmation batches", []);
+        setIfOk(results[21] as PromiseSettledResult<InboxRawFileSummary[]>, setInterestBatches, "Interest batches", []);
+        setIfOk(results[22] as PromiseSettledResult<InboxRawFileSummary[]>, setFeesBatches, "Fees batches", []);
+        setIfOk(results[23] as PromiseSettledResult<InboxRawFileSummary[]>, setWithholdingTaxBatches, "Withholding tax batches", []);
+        setIfOk(results[24] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendBatches, "Dividend batches", []);
+        setIfOk(results[25] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendAccrualBatches, "Dividend accrual batches", []);
+        setIfOk(results[26] as PromiseSettledResult<InboxRawFileSummary[]>, setRealizedPerformanceBatches, "Realized P/L batches", []);
 
         setWarnings(nextWarnings);
 
@@ -202,7 +211,10 @@ export function useFilingData(filters?: {
       fxRateBatches,
       corporateActionBatches,
       conversionBatches,
+      tradeConfirmationBatches,
       interestBatches,
+      feesBatches,
+      withholdingTaxBatches,
       dividendBatches,
       dividendAccrualBatches,
       realizedPerformanceBatches,
@@ -231,7 +243,10 @@ export function useFilingData(filters?: {
       fxRateBatches,
       corporateActionBatches,
       conversionBatches,
+      tradeConfirmationBatches,
       interestBatches,
+      feesBatches,
+      withholdingTaxBatches,
       dividendBatches,
       dividendAccrualBatches,
       realizedPerformanceBatches,

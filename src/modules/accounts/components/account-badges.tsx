@@ -25,7 +25,9 @@ const sourceClasses: Record<SourceSystem, string> = {
   IBKR: "bg-slate-100 text-slate-700",
   DBS: "bg-slate-100 text-slate-700",
   MANUAL: "bg-slate-100 text-slate-700",
-  FRANKFURTER: "bg-slate-100 text-slate-700"
+  FRANKFURTER: "bg-slate-100 text-slate-700",
+  UNION_BANK: "bg-slate-100 text-slate-700",
+  CORPAY: "bg-slate-100 text-slate-700"
 };
 
 export function SourceSystemBadge({ sourceSystem }: { sourceSystem: SourceSystem }) {

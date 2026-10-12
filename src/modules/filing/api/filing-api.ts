@@ -5,6 +5,7 @@ import type {
   Conversion,
   CorporateAction,
   Dividend,
+  Fee,
   FxRate,
   InboxRawFileSummary,
   Interest,
@@ -17,7 +18,9 @@ import type {
   SecurityMaster,
   SecurityOptionRow,
   Trade,
-  Transfer
+  TradeConfirmation,
+  Transfer,
+  WithholdingTax
 } from "../types/filing";
 
 type PagedListResponse = { items: Record<string, unknown>[]; limit?: number; offset?: number };
@@ -212,6 +215,31 @@ function mapCorporateAction(raw: Record<string, unknown>): CorporateAction {
   };
 }
 
+function mapTradeConfirmation(raw: Record<string, unknown>): TradeConfirmation {
+  const tradeTime = get(raw, "tradeTime", "trade_time");
+  return {
+    id: String(get(raw, "id", "id")),
+    symbol: String(get(raw, "symbol", "symbol") ?? ""),
+    tradeType: String(get(raw, "tradeType", "trade_type") ?? ""),
+    tradeDate: String(get(raw, "tradeDate", "trade_date") ?? ""),
+    tradeTime: tradeTime == null ? null : String(tradeTime),
+    settleDate: (get(raw, "settleDate", "settle_date") as string | null | undefined) ?? null,
+    exchange: (get(raw, "exchange", "exchange") as string | null | undefined) ?? null,
+    quantity: asNum0(get(raw, "quantity", "quantity")),
+    price: asNum(get(raw, "price", "price")),
+    proceeds: asNum(get(raw, "proceeds", "proceeds")),
+    commission: asNum(get(raw, "commission", "commission")),
+    fee: asNum(get(raw, "fee", "fee")),
+    orderType: (get(raw, "orderType", "order_type") as string | null | undefined) ?? null,
+    code: (get(raw, "code", "code") as string | null | undefined) ?? null,
+    currency: (get(raw, "currency", "currency") as string | null | undefined) ?? null,
+    brokerAccountId: (get(raw, "brokerAccountId", "broker_account_id") as string | null | undefined) ?? null,
+    assetCategory: (get(raw, "assetCategory", "asset_category") as string | null | undefined) ?? null,
+    rowLevel: (get(raw, "rowLevel", "row_level") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null
+  };
+}
+
 function mapInterest(raw: Record<string, unknown>): Interest {
   return {
     id: String(get(raw, "id", "id")),
@@ -223,6 +251,46 @@ function mapInterest(raw: Record<string, unknown>): Interest {
     amount: asNum0(get(raw, "amount", "amount")),
     direction: String(get(raw, "direction", "direction") ?? ""),
     description: (get(raw, "description", "description") as string | null | undefined) ?? null,
+    source: (get(raw, "source", "source") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null,
+    rawFileId: (get(raw, "rawFileId", "raw_file_id") as string | null | undefined) ?? null,
+    rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
+    createdAt: (get(raw, "createdAt", "created_at") as string | null | undefined) ?? null
+  };
+}
+
+function mapFee(raw: Record<string, unknown>): Fee {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    sourceFeeId: (get(raw, "sourceFeeId", "source_fee_id") as string | null | undefined) ?? null,
+    entryDate: String(get(raw, "entryDate", "entry_date") ?? ""),
+    currency: String(get(raw, "currency", "currency") ?? ""),
+    amount: asNum0(get(raw, "amount", "amount")),
+    direction: String(get(raw, "direction", "direction") ?? ""),
+    description: (get(raw, "description", "description") as string | null | undefined) ?? null,
+    code: (get(raw, "code", "code") as string | null | undefined) ?? null,
+    source: (get(raw, "source", "source") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null,
+    rawFileId: (get(raw, "rawFileId", "raw_file_id") as string | null | undefined) ?? null,
+    rawRecordId: (get(raw, "rawRecordId", "raw_record_id") as string | null | undefined) ?? null,
+    createdAt: (get(raw, "createdAt", "created_at") as string | null | undefined) ?? null
+  };
+}
+
+function mapWithholdingTax(raw: Record<string, unknown>): WithholdingTax {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    sourceWithholdingId: (get(raw, "sourceWithholdingId", "source_withholding_id") as string | null | undefined) ?? null,
+    entryDate: String(get(raw, "entryDate", "entry_date") ?? ""),
+    currency: String(get(raw, "currency", "currency") ?? ""),
+    amount: asNum0(get(raw, "amount", "amount")),
+    direction: String(get(raw, "direction", "direction") ?? ""),
+    description: (get(raw, "description", "description") as string | null | undefined) ?? null,
+    code: (get(raw, "code", "code") as string | null | undefined) ?? null,
     source: (get(raw, "source", "source") as string | null | undefined) ?? null,
     status: (get(raw, "status", "status") as string | null | undefined) ?? null,
     rawFileId: (get(raw, "rawFileId", "raw_file_id") as string | null | undefined) ?? null,
@@ -684,6 +752,44 @@ export const filingApi = {
       return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapInterest(row)) };
     });
   },
+  getFees: (
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; currency?: string; direction?: string; limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<PagedResult<Fee>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    if (params?.currency) query.set("currency", params.currency);
+    if (params?.direction) query.set("direction", params.direction);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/fees${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapFee(row)) };
+    });
+  },
+  getWithholdingTax: (
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; currency?: string; direction?: string; limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<PagedResult<WithholdingTax>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    if (params?.currency) query.set("currency", params.currency);
+    if (params?.direction) query.set("direction", params.direction);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/withholding-tax${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapWithholdingTax(row)) };
+    });
+  },
   getDividends: (
     params?: {
       accountId?: string;
@@ -825,6 +931,28 @@ export const filingApi = {
       .get<ListResponse>(`/filing-cabinet/conversion-batches${qs ? `?${qs}` : ""}`, signal)
       .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
+  getTradeConfirmationBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/trade-confirmation-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getTradeConfirmationsForRawFile: (
+    rawFileId: string,
+    params?: { limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<TradeConfirmation[]> => {
+    const query = new URLSearchParams();
+    query.set("limit", String(params?.limit ?? 500));
+    query.set("offset", String(params?.offset ?? 0));
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/files/${encodeURIComponent(rawFileId)}/trade-confirmations?${query.toString()}`, signal)
+      .then((r) => unwrap(r).map((row) => mapTradeConfirmation(row)));
+  },
   getInterestBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams();
     if (params?.accountId) query.set("accountId", params.accountId);
@@ -833,6 +961,26 @@ export const filingApi = {
     const qs = query.toString();
     return apiClient
       .get<ListResponse>(`/filing-cabinet/interest-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getFeesBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/fees-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
+  },
+  getWithholdingTaxBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/withholding-tax-batches${qs ? `?${qs}` : ""}`, signal)
       .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
   getDividendBatches: (
