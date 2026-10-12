@@ -175,6 +175,42 @@ export interface Interest {
   createdAt?: string | null;
 }
 
+export interface Fee {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  sourceFeeId?: string | null;
+  entryDate: string;
+  currency: string;
+  amount: number;
+  direction: string;
+  description?: string | null;
+  code?: string | null;
+  source?: string | null;
+  status?: string | null;
+  rawFileId?: string | null;
+  rawRecordId?: string | null;
+  createdAt?: string | null;
+}
+
+export interface WithholdingTax {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  sourceWithholdingId?: string | null;
+  entryDate: string;
+  currency: string;
+  amount: number;
+  direction: string;
+  description?: string | null;
+  code?: string | null;
+  source?: string | null;
+  status?: string | null;
+  rawFileId?: string | null;
+  rawRecordId?: string | null;
+  createdAt?: string | null;
+}
+
 export interface Dividend {
   id: string;
   tenantId: string;
