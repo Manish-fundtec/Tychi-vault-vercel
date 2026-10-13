@@ -180,6 +180,18 @@ const FX_COLUMNS: DataTableColumn<FxRate>[] = [
 
 const CORP_ACTION_COLUMNS: DataTableColumn<CorporateAction>[] = [
   { id: "exDate", header: "Ex Date", sortValue: (r) => new Date(r.exDate).getTime(), cell: (r) => formatDate(r.exDate) },
+  {
+    id: "recordDate",
+    header: "Record Date",
+    sortValue: (r) => (r.recordDate ? new Date(r.recordDate).getTime() : 0),
+    cell: (r) => (r.recordDate ? formatDate(r.recordDate) : "-")
+  },
+  {
+    id: "payDate",
+    header: "Pay Date",
+    sortValue: (r) => (r.payDate ? new Date(r.payDate).getTime() : 0),
+    cell: (r) => (r.payDate ? formatDate(r.payDate) : "-")
+  },
   { id: "security", header: "Security", sortValue: (r) => r.securityName ?? r.securityId, cell: (r) => <span className="font-medium">{r.securityName ?? r.securityId}</span> },
   { id: "actionType", header: "Action Type", sortValue: (r) => r.actionType ?? "", accessor: (r) => r.actionType ?? "-" },
   { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" }
