@@ -4,6 +4,7 @@ import type {
   CashTransaction,
   Conversion,
   CorporateAction,
+  DepositWithdrawal,
   Dividend,
   Fee,
   FxRate,
@@ -237,6 +238,27 @@ function mapTradeConfirmation(raw: Record<string, unknown>): TradeConfirmation {
     assetCategory: (get(raw, "assetCategory", "asset_category") as string | null | undefined) ?? null,
     rowLevel: (get(raw, "rowLevel", "row_level") as string | null | undefined) ?? null,
     status: (get(raw, "status", "status") as string | null | undefined) ?? null
+  };
+}
+
+function mapDepositWithdrawal(raw: Record<string, unknown>): DepositWithdrawal {
+  return {
+    id: String(get(raw, "id", "id")),
+    tenantId: String(get(raw, "tenantId", "tenant_id") ?? ""),
+    accountId: String(get(raw, "accountId", "account_id") ?? ""),
+    txnDate: String(get(raw, "txnDate", "txn_date") ?? ""),
+    currency: String(get(raw, "currency", "currency") ?? ""),
+    amount: asNum0(get(raw, "amount", "amount")),
+    direction: String(get(raw, "direction", "direction") ?? ""),
+    entryKind: (get(raw, "entryKind", "entry_kind") as string | null | undefined) ?? null,
+    counterpartyAccount: (get(raw, "counterpartyAccount", "counterparty_account") as string | null | undefined) ?? null,
+    description: (get(raw, "description", "description") as string | null | undefined) ?? null,
+    status: (get(raw, "status", "status") as string | null | undefined) ?? null,
+    matchLog: (get(raw, "matchLog", "match_log") as string | null | undefined) ?? null,
+    pushError: (get(raw, "pushError", "push_error") as string | null | undefined) ?? null,
+    pairId: (get(raw, "pairId", "pair_id") as string | null | undefined) ?? null,
+    rawFileId: (get(raw, "rawFileId", "raw_file_id") as string | null | undefined) ?? null,
+    createdAt: (get(raw, "createdAt", "created_at") as string | null | undefined) ?? null
   };
 }
 
@@ -733,6 +755,25 @@ export const filingApi = {
       return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapConversion(row)) };
     });
   },
+  getDepositWithdrawals: (
+    params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; currency?: string; direction?: string; limit?: number; offset?: number },
+    signal?: AbortSignal
+  ): Promise<PagedResult<DepositWithdrawal>> => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    if (params?.from) query.set("from", params.from);
+    if (params?.to) query.set("to", params.to);
+    if (params?.rawFileId) query.set("rawFileId", params.rawFileId);
+    if (params?.currency) query.set("currency", params.currency);
+    if (params?.direction) query.set("direction", params.direction);
+    query.set("limit", String(params?.limit ?? 100));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient.get<ListResponse>(`/filing-cabinet/deposits-withdrawals${qs ? `?${qs}` : ""}`, signal).then((r) => {
+      const u = unwrapPaged(r);
+      return { limit: u.limit, offset: u.offset, items: u.items.map((row) => mapDepositWithdrawal(row)) };
+    });
+  },
   getInterest: (
     params?: { accountId?: string; from?: string; to?: string; rawFileId?: string; currency?: string; direction?: string; limit?: number; offset?: number },
     signal?: AbortSignal
@@ -952,6 +993,16 @@ export const filingApi = {
     return apiClient
       .get<ListResponse>(`/filing-cabinet/files/${encodeURIComponent(rawFileId)}/trade-confirmations?${query.toString()}`, signal)
       .then((r) => unwrap(r).map((row) => mapTradeConfirmation(row)));
+  },
+  getDepositWithdrawalBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    if (params?.accountId) query.set("accountId", params.accountId);
+    query.set("limit", String(params?.limit ?? 50));
+    query.set("offset", String(params?.offset ?? 0));
+    const qs = query.toString();
+    return apiClient
+      .get<ListResponse>(`/filing-cabinet/deposits-withdrawals-batches${qs ? `?${qs}` : ""}`, signal)
+      .then((r) => unwrap(r).map((row) => mapInboxFileSummary(row)));
   },
   getInterestBatches: (params?: { accountId?: string; limit?: number; offset?: number }, signal?: AbortSignal) => {
     const query = new URLSearchParams();
