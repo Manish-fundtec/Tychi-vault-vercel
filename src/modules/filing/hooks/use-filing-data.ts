@@ -47,6 +47,7 @@ export function useFilingData(filters?: {
   const [priceBatches, setPriceBatches] = useState<InboxRawFileSummary[]>([]);
   const [tradeConfirmationBatches, setTradeConfirmationBatches] = useState<InboxRawFileSummary[]>([]);
   const [interestBatches, setInterestBatches] = useState<InboxRawFileSummary[]>([]);
+  const [depositWithdrawalBatches, setDepositWithdrawalBatches] = useState<InboxRawFileSummary[]>([]);
   const [feesBatches, setFeesBatches] = useState<InboxRawFileSummary[]>([]);
   const [withholdingTaxBatches, setWithholdingTaxBatches] = useState<InboxRawFileSummary[]>([]);
   const [dividendBatches, setDividendBatches] = useState<InboxRawFileSummary[]>([]);
@@ -118,6 +119,7 @@ export function useFilingData(filters?: {
           filingApi.getConversionBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getTradeConfirmationBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getInterestBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
+          filingApi.getDepositWithdrawalBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getFeesBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getWithholdingTaxBatches({ accountId: filters?.accountId, limit: 50, offset: 0 }, controller.signal),
           filingApi.getDividendBatches({ accountId: filters?.accountId, entryType: "CASH", limit: 50, offset: 0 }, controller.signal),
@@ -158,11 +160,12 @@ export function useFilingData(filters?: {
         setIfOk(results[19] as PromiseSettledResult<InboxRawFileSummary[]>, setConversionBatches, "Conversion batches", []);
         setIfOk(results[20] as PromiseSettledResult<InboxRawFileSummary[]>, setTradeConfirmationBatches, "Trade confirmation batches", []);
         setIfOk(results[21] as PromiseSettledResult<InboxRawFileSummary[]>, setInterestBatches, "Interest batches", []);
-        setIfOk(results[22] as PromiseSettledResult<InboxRawFileSummary[]>, setFeesBatches, "Fees batches", []);
-        setIfOk(results[23] as PromiseSettledResult<InboxRawFileSummary[]>, setWithholdingTaxBatches, "Withholding tax batches", []);
-        setIfOk(results[24] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendBatches, "Dividend batches", []);
-        setIfOk(results[25] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendAccrualBatches, "Dividend accrual batches", []);
-        setIfOk(results[26] as PromiseSettledResult<InboxRawFileSummary[]>, setRealizedPerformanceBatches, "Realized P/L batches", []);
+        setIfOk(results[22] as PromiseSettledResult<InboxRawFileSummary[]>, setDepositWithdrawalBatches, "Deposit and withdrawal batches", []);
+        setIfOk(results[23] as PromiseSettledResult<InboxRawFileSummary[]>, setFeesBatches, "Fees batches", []);
+        setIfOk(results[24] as PromiseSettledResult<InboxRawFileSummary[]>, setWithholdingTaxBatches, "Withholding tax batches", []);
+        setIfOk(results[25] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendBatches, "Dividend batches", []);
+        setIfOk(results[26] as PromiseSettledResult<InboxRawFileSummary[]>, setDividendAccrualBatches, "Dividend accrual batches", []);
+        setIfOk(results[27] as PromiseSettledResult<InboxRawFileSummary[]>, setRealizedPerformanceBatches, "Realized P/L batches", []);
 
         setWarnings(nextWarnings);
 
@@ -213,6 +216,7 @@ export function useFilingData(filters?: {
       conversionBatches,
       tradeConfirmationBatches,
       interestBatches,
+      depositWithdrawalBatches,
       feesBatches,
       withholdingTaxBatches,
       dividendBatches,
@@ -245,6 +249,7 @@ export function useFilingData(filters?: {
       conversionBatches,
       tradeConfirmationBatches,
       interestBatches,
+      depositWithdrawalBatches,
       feesBatches,
       withholdingTaxBatches,
       dividendBatches,

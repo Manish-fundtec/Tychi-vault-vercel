@@ -158,6 +158,25 @@ export interface TradeConfirmation {
   status?: string | null;
 }
 
+export interface DepositWithdrawal {
+  id: string;
+  tenantId: string;
+  accountId: string;
+  txnDate: string;
+  currency: string;
+  amount: number;
+  direction: string;
+  entryKind?: string | null;
+  counterpartyAccount?: string | null;
+  description?: string | null;
+  status?: string | null;
+  matchLog?: string | null;
+  pushError?: string | null;
+  pairId?: string | null;
+  rawFileId?: string | null;
+  createdAt?: string | null;
+}
+
 export interface Interest {
   id: string;
   tenantId: string;

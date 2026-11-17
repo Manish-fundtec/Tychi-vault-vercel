@@ -23,6 +23,7 @@ import type {
   FxRate,
   InboxRawFileSummary,
   Interest,
+  DepositWithdrawal,
   Position,
   Price,
   RealizedPerformance,
@@ -180,6 +181,18 @@ const FX_COLUMNS: DataTableColumn<FxRate>[] = [
 
 const CORP_ACTION_COLUMNS: DataTableColumn<CorporateAction>[] = [
   { id: "exDate", header: "Ex Date", sortValue: (r) => new Date(r.exDate).getTime(), cell: (r) => formatDate(r.exDate) },
+  {
+    id: "recordDate",
+    header: "Record Date",
+    sortValue: (r) => (r.recordDate ? new Date(r.recordDate).getTime() : 0),
+    cell: (r) => (r.recordDate ? formatDate(r.recordDate) : "-")
+  },
+  {
+    id: "payDate",
+    header: "Pay Date",
+    sortValue: (r) => (r.payDate ? new Date(r.payDate).getTime() : 0),
+    cell: (r) => (r.payDate ? formatDate(r.payDate) : "-")
+  },
   { id: "security", header: "Security", sortValue: (r) => r.securityName ?? r.securityId, cell: (r) => <span className="font-medium">{r.securityName ?? r.securityId}</span> },
   { id: "actionType", header: "Action Type", sortValue: (r) => r.actionType ?? "", accessor: (r) => r.actionType ?? "-" },
   { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" }
@@ -213,6 +226,32 @@ const CONVERSION_COLUMNS: DataTableColumn<Conversion>[] = [
   { id: "fxRate", header: "FX Rate", align: "right", sortValue: (r) => r.fxRate, cell: (r) => <span className="tabular-nums">{formatNumber(r.fxRate)}</span> },
   { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" },
   { id: "source", header: "Source", sortValue: (r) => r.source ?? "", accessor: (r) => r.source ?? "-" }
+];
+
+const DEPOSIT_WITHDRAWAL_COLUMNS: DataTableColumn<DepositWithdrawal>[] = [
+  { id: "txnDate", header: "Date", sortValue: (r) => new Date(r.txnDate).getTime(), cell: (r) => formatDate(r.txnDate) },
+  { id: "currency", header: "CCY", sortValue: (r) => r.currency ?? "", accessor: (r) => r.currency ?? "-" },
+  {
+    id: "direction",
+    header: "Direction",
+    sortValue: (r) => r.direction ?? "",
+    cell: (r) => (
+      <Badge className={r.direction === "IN" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}>{r.direction || "-"}</Badge>
+    )
+  },
+  {
+    id: "amount",
+    header: "Amount",
+    align: "right",
+    sortValue: (r) => r.amount,
+    cell: (r) => (
+      <span className={r.amount >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-red-700"}>{formatCurrency(r.amount, r.currency)}</span>
+    )
+  },
+  { id: "counterparty", header: "Counterparty", sortValue: (r) => r.counterpartyAccount ?? "", accessor: (r) => r.counterpartyAccount ?? "-" },
+  { id: "description", header: "Description", sortValue: (r) => r.description ?? "", accessor: (r) => r.description ?? "-" },
+  { id: "status", header: "Status", sortValue: (r) => r.status ?? "", accessor: (r) => r.status ?? "-" },
+  { id: "matchLog", header: "Match log", sortValue: (r) => r.matchLog ?? "", accessor: (r) => [r.matchLog, r.pushError].filter(Boolean).join(" | ") || "-" }
 ];
 
 const INTEREST_COLUMNS: DataTableColumn<Interest>[] = [
@@ -410,6 +449,7 @@ export function FilingCabinetPage() {
     conversionBatches,
     tradeConfirmationBatches,
     interestBatches,
+    depositWithdrawalBatches,
     feesBatches,
     withholdingTaxBatches,
     dividendBatches,
@@ -446,6 +486,7 @@ export function FilingCabinetPage() {
     | "conversions"
     | "tradeConfirmations"
     | "interest"
+    | "deposits"
     | "fees"
     | "withholdingTax"
     | "dividends"
@@ -567,6 +608,10 @@ export function FilingCabinetPage() {
         const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
         return d ? inRange(d) : true;
       }),
+      deposits: depositWithdrawalBatches.filter((r) => {
+        const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
+        return d ? inRange(d) : true;
+      }),
       fees: feesBatches.filter((r) => {
         const d = safe(r.toDate) || safe(r.fromDate) || safe(r.createdAt);
         return d ? inRange(d) : true;
@@ -601,6 +646,7 @@ export function FilingCabinetPage() {
     conversionBatches,
     tradeConfirmationBatches,
     interestBatches,
+    depositWithdrawalBatches,
     feesBatches,
     withholdingTaxBatches,
     dividendBatches,
@@ -661,6 +707,14 @@ export function FilingCabinetPage() {
         setRawRows(items);
       } else if (kind === "interest") {
         const res = await filingApi.getInterest({
+          accountId: accountId.trim() || undefined,
+          rawFileId: file.rawFileId,
+          limit: 500,
+          offset: 0
+        }, controller.signal);
+        setRawRows(res.items);
+      } else if (kind === "deposits") {
+        const res = await filingApi.getDepositWithdrawals({
           accountId: accountId.trim() || undefined,
           rawFileId: file.rawFileId,
           limit: 500,
@@ -757,6 +811,7 @@ export function FilingCabinetPage() {
     if (t === "conversions") return "conversions";
     if (t === "tradeConfirmations") return "tradeConfirmations";
     if (t === "interest") return "interest";
+    if (t === "deposits") return "deposits";
     if (t === "fees") return "fees";
     if (t === "withholdingTax") return "withholdingTax";
     if (t === "dividends") return "dividends";
@@ -1060,6 +1115,7 @@ export function FilingCabinetPage() {
             <TabsTrigger value="corporateActions">Corporate Actions</TabsTrigger>
             <TabsTrigger value="conversions">Conversions</TabsTrigger>
             <TabsTrigger value="interest">Interest</TabsTrigger>
+            <TabsTrigger value="deposits">Deposits & Withdrawals</TabsTrigger>
             <TabsTrigger value="fees">Fees</TabsTrigger>
             <TabsTrigger value="withholdingTax">Withholding Tax</TabsTrigger>
             <TabsTrigger value="dividends">Dividends</TabsTrigger>
@@ -1225,6 +1281,19 @@ export function FilingCabinetPage() {
                 onRowClick={(row) => void openRawFile("interest", row)}
                 emptyTitle="No interest batches"
                 emptyDescription="Try adjusting the date range or account filter."
+              />
+            </Section>
+          </TabsContent>
+
+          <TabsContent value="deposits">
+            <Section title="Deposits and withdrawals" description="One row per broker file. A matched internal transfer books one Cash Transfer after both files are in. The match log says why a line did not pair.">
+              <DataTable
+                data={batchFiltered.deposits}
+                columns={batchFileColumns}
+                getRowId={(r) => r.rawFileId}
+                onRowClick={(row) => void openRawFile("deposits", row)}
+                emptyTitle="No deposit or withdrawal batches"
+                emptyDescription="Upload both broker files, then refresh this page."
               />
             </Section>
           </TabsContent>
@@ -1618,7 +1687,7 @@ function RawFileRecordsModal({
   onClose
 }: {
   open: boolean;
-  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions" | "tradeConfirmations" | "interest" | "fees" | "withholdingTax" | "dividends" | "accruals" | "rpnl";
+  kind: "positions" | "transfers" | "cash" | "cashBalances" | "prices" | "fxRates" | "corporateActions" | "conversions" | "tradeConfirmations" | "interest" | "deposits" | "fees" | "withholdingTax" | "dividends" | "accruals" | "rpnl";
   file: InboxRawFileSummary | null;
   loading: boolean;
   error: string | null;
@@ -1646,6 +1715,8 @@ function RawFileRecordsModal({
                     ? "Trade Confirmation"
                     : kind === "interest"
                     ? "Interest"
+                    : kind === "deposits"
+                      ? "Deposits & Withdrawals"
                     : kind === "fees"
                       ? "Fees"
                       : kind === "withholdingTax"
@@ -1677,6 +1748,8 @@ function RawFileRecordsModal({
                     ? (TRADE_CONFIRMATION_COLUMNS as DataTableColumn<unknown>[])
                     : kind === "interest"
                     ? (INTEREST_COLUMNS as DataTableColumn<unknown>[])
+                    : kind === "deposits"
+                      ? (DEPOSIT_WITHDRAWAL_COLUMNS as DataTableColumn<unknown>[])
                     : kind === "fees"
                       ? (FEE_COLUMNS as DataTableColumn<unknown>[])
                       : kind === "withholdingTax"
@@ -1693,7 +1766,7 @@ function RawFileRecordsModal({
       onClose={onClose}
       title={title}
       description={`${file.fileName || file.rawFileId}${file.createdAt ? ` • ${formatDate(file.createdAt)}` : ""}`}
-      widthClassName={kind === "tradeConfirmations" ? "w-[min(1280px,calc(100vw-24px))]" : "w-[min(980px,calc(100vw-24px))]"}
+      widthClassName={kind === "tradeConfirmations" || kind === "deposits" ? "w-[min(1280px,calc(100vw-24px))]" : "w-[min(980px,calc(100vw-24px))]"}
       placement="center"
     >
       {error ? <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
